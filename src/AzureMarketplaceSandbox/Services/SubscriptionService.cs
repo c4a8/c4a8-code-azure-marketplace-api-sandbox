@@ -85,9 +85,7 @@ public class SubscriptionService(MarketplaceDbContext db)
 
         subscription.SaasSubscriptionStatus = SaasSubscriptionStatus.Subscribed;
         subscription.Term.StartDate = DateTime.UtcNow;
-        subscription.Term.EndDate = subscription.Term.TermUnit == "P1Y"
-            ? DateTime.UtcNow.AddYears(1)
-            : DateTime.UtcNow.AddMonths(1);
+        subscription.Term.EndDate = subscription.Term.CalculateEndDate(DateTime.UtcNow);
 
         await db.SaveChangesAsync();
         return (true, null);
