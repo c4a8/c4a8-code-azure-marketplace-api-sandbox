@@ -1,0 +1,118 @@
+@page "/offers"
+@rendermode InteractiveServer
+@inject MarketplaceDbContext Db
+@inject NavigationManager Nav
+
+<PageTitle>Offers</PageTitle>
+
+<h1>Offers</h1>
+
+<div class="mb-3">
+    <h5>Create New Offer</h5>
+    <EditForm Model="_newOffer" OnValidSubmit="CreateOffer" FormName="CreateOffer">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Offer ID</label>
+                <InputText class="form-control" @bind-Value="_newOffer.OfferId" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Publisher ID</label>
+                <InputText class="form-control" @bind-Value="_newOffer.PublisherId" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Display Name</label>
+                <InputText class="form-control" @bind-Value="_newOffer.DisplayName" />
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+        </div>
+    </EditForm>
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger mt-2">@_error</div>
+    }
+</div>
+
+<hr />
+
+@if (_offers.Count == 0)
+{
+    <p class="text-muted">No offers configured yet.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Offer ID</th>
+                <th>Publisher</th>
+                <th>Display Name</th>
+                <th>Plans</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var offer in _offers)
+            {
+                <tr>
+                    <td><a href="offers/@offer.OfferId">@offer.OfferId</a></td>
+                    <td>@offer.PublisherId</td>
+                    <td>@offer.DisplayName</td>
+                    <td>@offer.Plans.Count</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteOffer(offer.OfferId)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Offer> _offers = [];
+    private Offer _newOffer = new();
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOffers();
+    }
+
+    private async Task LoadOffers()
+    {
+        _offers = await Db.Offers.Include(o => o.Plans).OrderBy(o => o.OfferId).ToListAsync();
+    }
+
+    private async Task CreateOffer()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_newOffer.OfferId))
+        {
+            _error = "Offer ID is required.";
+            return;
+        }
+
+        if (await Db.Offers.AnyAsync(o => o.OfferId == _newOffer.OfferId))
+        {
+            _error = $"Offer '{_newOffer.OfferId}' already exists.";
+            return;
+        }
+
+        Db.Offers.Add(_newOffer);
+        await Db.SaveChangesAsync();
+        _newOffer = new();
+        await LoadOffers();
+    }
+
+    private async Task DeleteOffer(string offerId)
+    {
+        var offer = await Db.Offers.FindAsync(offerId);
+        if (offer is not null)
+        {
+            Db.Offers.Remove(offer);
+            await Db.SaveChangesAsync();
+            await LoadOffers();
+        }
+    }
+}

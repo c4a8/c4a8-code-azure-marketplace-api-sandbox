@@ -1,0 +1,109 @@
+@page "/"
+@rendermode InteractiveServer
+@inject MarketplaceDbContext Db
+
+<PageTitle>Dashboard</PageTitle>
+
+<h1>Dashboard</h1>
+
+@if (_loaded)
+{
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Pending</h5>
+                    <p class="card-text display-6">@_pendingCount</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Subscribed</h5>
+                    <p class="card-text display-6">@_subscribedCount</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Suspended</h5>
+                    <p class="card-text display-6">@_suspendedCount</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-secondary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Unsubscribed</h5>
+                    <p class="card-text display-6">@_unsubscribedCount</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h4>Recent Operations</h4>
+    @if (_recentOperations.Count == 0)
+    {
+        <p class="text-muted">No operations yet.</p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Subscription</th>
+                    <th>Action</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var op in _recentOperations)
+                {
+                    <tr>
+                        <td>@op.TimeStamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td><a href="subscriptions/@op.SubscriptionId">@op.SubscriptionId.ToString()[..8]...</a></td>
+                        <td>@op.Action</td>
+                        <td>
+                            <span class="badge @GetStatusBadge(op.Status)">@op.Status</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h4 class="mt-4">Offers</h4>
+    <p>@_offerCount offer(s) configured. <a href="offers">Manage Offers</a></p>
+}
+else
+{
+    <p>Loading...</p>
+}
+
+@code {
+    private bool _loaded;
+    private int _pendingCount, _subscribedCount, _suspendedCount, _unsubscribedCount, _offerCount;
+    private List<Operation> _recentOperations = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _pendingCount = await Db.Subscriptions.CountAsync(s => s.SaasSubscriptionStatus == SaasSubscriptionStatus.PendingFulfillmentStart);
+        _subscribedCount = await Db.Subscriptions.CountAsync(s => s.SaasSubscriptionStatus == SaasSubscriptionStatus.Subscribed);
+        _suspendedCount = await Db.Subscriptions.CountAsync(s => s.SaasSubscriptionStatus == SaasSubscriptionStatus.Suspended);
+        _unsubscribedCount = await Db.Subscriptions.CountAsync(s => s.SaasSubscriptionStatus == SaasSubscriptionStatus.Unsubscribed);
+        _offerCount = await Db.Offers.CountAsync();
+        _recentOperations = await Db.Operations.OrderByDescending(o => o.TimeStamp).Take(10).ToListAsync();
+        _loaded = true;
+    }
+
+    private static string GetStatusBadge(OperationStatus status) => status switch
+    {
+        OperationStatus.Succeeded => "bg-success",
+        OperationStatus.Failed => "bg-danger",
+        OperationStatus.InProgress => "bg-info",
+        _ => "bg-secondary"
+    };
+}

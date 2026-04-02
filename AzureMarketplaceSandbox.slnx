@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AzureMarketplaceSandbox/AzureMarketplaceSandbox.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AzureMarketplaceSandbox.Tests/AzureMarketplaceSandbox.Tests.csproj" />
+  </Folder>
+</Solution>

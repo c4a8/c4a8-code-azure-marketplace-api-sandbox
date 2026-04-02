@@ -1,0 +1,265 @@
+@page "/subscriptions/{SubscriptionId:guid}"
+@rendermode InteractiveServer
+@inject MarketplaceDbContext Db
+@inject SubscriptionService SubService
+@inject OperationService OpService
+@inject WebhookService WebhookSvc
+
+<PageTitle>Subscription Detail</PageTitle>
+
+@if (_sub is null)
+{
+    <p>Subscription not found.</p>
+}
+else
+{
+    <h1>Subscription: @_sub.Name</h1>
+    <span class="badge @GetStatusBadge(_sub.SaasSubscriptionStatus) fs-6 mb-3">@_sub.SaasSubscriptionStatus</span>
+
+    <div class="row">
+        <div class="col-md-6">
+            <table class="table table-sm">
+                <tr><th>ID</th><td>@_sub.Id</td></tr>
+                <tr><th>Offer</th><td>@_sub.OfferId</td></tr>
+                <tr><th>Plan</th><td>@_sub.PlanId</td></tr>
+                <tr><th>Quantity</th><td>@_sub.Quantity</td></tr>
+                <tr><th>Publisher</th><td>@_sub.PublisherId</td></tr>
+                <tr><th>Free Trial</th><td>@(_sub.IsFreeTrial ? "Yes" : "No")</td></tr>
+                <tr><th>Auto Renew</th><td>@(_sub.AutoRenew ? "Yes" : "No")</td></tr>
+                <tr><th>Term</th><td>@_sub.Term.TermUnit (@_sub.Term.StartDate?.ToString("yyyy-MM-dd") - @_sub.Term.EndDate?.ToString("yyyy-MM-dd"))</td></tr>
+                <tr><th>Created</th><td>@_sub.Created.ToString("yyyy-MM-dd HH:mm:ss")</td></tr>
+            </table>
+        </div>
+        <div class="col-md-6">
+            <h5>Beneficiary</h5>
+            <table class="table table-sm">
+                <tr><th>Email</th><td>@_sub.Beneficiary.EmailId</td></tr>
+                <tr><th>Tenant</th><td>@_sub.Beneficiary.TenantId</td></tr>
+                <tr><th>Object ID</th><td>@_sub.Beneficiary.ObjectId</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <hr />
+    <h4>Actions</h4>
+    @if (_message is not null)
+    {
+        <div class="alert @(_isError ? "alert-danger" : "alert-success") mt-2">@_message</div>
+    }
+
+    <div class="d-flex gap-2 mb-3">
+        @if (_sub.SaasSubscriptionStatus == SaasSubscriptionStatus.PendingFulfillmentStart)
+        {
+            <button class="btn btn-success" @onclick="Activate">Activate</button>
+        }
+
+        @if (_sub.SaasSubscriptionStatus == SaasSubscriptionStatus.Subscribed)
+        {
+            <button class="btn btn-warning" @onclick="Suspend">Suspend</button>
+            <button class="btn btn-danger" @onclick="Unsubscribe">Unsubscribe</button>
+        }
+
+        @if (_sub.SaasSubscriptionStatus == SaasSubscriptionStatus.Suspended)
+        {
+            <button class="btn btn-success" @onclick="Reinstate">Reinstate</button>
+            <button class="btn btn-danger" @onclick="Unsubscribe">Unsubscribe</button>
+        }
+    </div>
+
+    @if (_sub.SaasSubscriptionStatus == SaasSubscriptionStatus.Subscribed)
+    {
+        <div class="row mt-3">
+            <div class="col-md-4">
+                <h6>Change Plan</h6>
+                <div class="input-group">
+                    <InputSelect class="form-control" @bind-Value="_newPlanId">
+                        <option value="">-- Select --</option>
+                        @foreach (var plan in _availablePlans.Where(p => p.PlanId != _sub.PlanId))
+                        {
+                            <option value="@plan.PlanId">@plan.PlanId</option>
+                        }
+                    </InputSelect>
+                    <button class="btn btn-outline-primary" @onclick="ChangePlan" disabled="@string.IsNullOrEmpty(_newPlanId)">Change</button>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <h6>Change Quantity</h6>
+                <div class="input-group">
+                    <InputNumber class="form-control" @bind-Value="_newQuantity" />
+                    <button class="btn btn-outline-primary" @onclick="ChangeQuantity">Change</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <hr />
+    <h4>Operations</h4>
+    @if (_operations.Count == 0)
+    {
+        <p class="text-muted">No operations.</p>
+    }
+    else
+    {
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr><th>Time</th><th>Action</th><th>Plan</th><th>Qty</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var op in _operations)
+                {
+                    <tr>
+                        <td>@op.TimeStamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@op.Action</td>
+                        <td>@op.PlanId</td>
+                        <td>@op.Quantity</td>
+                        <td><span class="badge @GetOpBadge(op.Status)">@op.Status</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <div class="mt-3">
+        <a href="subscriptions" class="btn btn-outline-secondary">Back to Subscriptions</a>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid SubscriptionId { get; set; }
+
+    private Subscription? _sub;
+    private List<Plan> _availablePlans = [];
+    private List<Operation> _operations = [];
+    private string _newPlanId = string.Empty;
+    private int _newQuantity = 1;
+    private string? _message;
+    private bool _isError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _sub = await SubService.GetAsync(SubscriptionId);
+        if (_sub is not null)
+        {
+            _availablePlans = await SubService.ListAvailablePlansAsync(SubscriptionId);
+            _operations = await Db.Operations
+                .Where(o => o.SubscriptionId == SubscriptionId)
+                .OrderByDescending(o => o.TimeStamp)
+                .ToListAsync();
+        }
+    }
+
+    private async Task Activate()
+    {
+        var ok = await SubService.ActivateAsync(SubscriptionId);
+        SetMessage(ok ? "Subscription activated." : "Could not activate.", !ok);
+        await LoadData();
+    }
+
+    private async Task Suspend()
+    {
+        var op = CreateOperation(OperationAction.Suspend);
+        Db.Operations.Add(op);
+        _sub!.SaasSubscriptionStatus = SaasSubscriptionStatus.Suspended;
+        await Db.SaveChangesAsync();
+        _ = WebhookSvc.SendWebhookAsync(SubscriptionId, OperationAction.Suspend, operationId: op.Id);
+        SetMessage("Subscription suspended.", false);
+        await LoadData();
+    }
+
+    private async Task Reinstate()
+    {
+        var op = CreateOperation(OperationAction.Reinstate);
+        Db.Operations.Add(op);
+        _sub!.SaasSubscriptionStatus = SaasSubscriptionStatus.Subscribed;
+        await Db.SaveChangesAsync();
+        _ = WebhookSvc.SendWebhookAsync(SubscriptionId, OperationAction.Reinstate, operationId: op.Id);
+        SetMessage("Subscription reinstated.", false);
+        await LoadData();
+    }
+
+    private async Task Unsubscribe()
+    {
+        var op = await SubService.UnsubscribeAsync(SubscriptionId);
+        if (op is not null)
+        {
+            _ = WebhookSvc.SendWebhookAsync(SubscriptionId, OperationAction.Unsubscribe, operationId: op.Id);
+            // Immediately apply for admin action
+            op.Status = OperationStatus.Succeeded;
+            _sub!.SaasSubscriptionStatus = SaasSubscriptionStatus.Unsubscribed;
+            await Db.SaveChangesAsync();
+            SetMessage("Subscription unsubscribed.", false);
+        }
+        else
+        {
+            SetMessage("Could not unsubscribe.", true);
+        }
+        await LoadData();
+    }
+
+    private async Task ChangePlan()
+    {
+        var op = await SubService.ChangePlanAsync(SubscriptionId, _newPlanId);
+        if (op is not null)
+        {
+            _ = WebhookSvc.SendWebhookAsync(SubscriptionId, OperationAction.ChangePlan,
+                newPlanId: _newPlanId, operationId: op.Id);
+            SetMessage($"ChangePlan operation created (InProgress). Webhook sent.", false);
+        }
+        else
+        {
+            SetMessage("Could not change plan.", true);
+        }
+        _newPlanId = string.Empty;
+        await LoadData();
+    }
+
+    private async Task ChangeQuantity()
+    {
+        var op = await SubService.ChangeQuantityAsync(SubscriptionId, _newQuantity);
+        if (op is not null)
+        {
+            _ = WebhookSvc.SendWebhookAsync(SubscriptionId, OperationAction.ChangeQuantity,
+                newQuantity: _newQuantity, operationId: op.Id);
+            SetMessage($"ChangeQuantity operation created (InProgress). Webhook sent.", false);
+        }
+        else
+        {
+            SetMessage("Could not change quantity.", true);
+        }
+        await LoadData();
+    }
+
+    private Operation CreateOperation(OperationAction action) => new()
+    {
+        SubscriptionId = SubscriptionId,
+        OfferId = _sub!.OfferId,
+        PublisherId = _sub.PublisherId,
+        PlanId = _sub.PlanId,
+        Quantity = _sub.Quantity,
+        Action = action,
+        Status = OperationStatus.Succeeded
+    };
+
+    private void SetMessage(string msg, bool isError) { _message = msg; _isError = isError; }
+
+    private static string GetStatusBadge(SaasSubscriptionStatus s) => s switch
+    {
+        SaasSubscriptionStatus.PendingFulfillmentStart => "bg-primary",
+        SaasSubscriptionStatus.Subscribed => "bg-success",
+        SaasSubscriptionStatus.Suspended => "bg-warning",
+        _ => "bg-secondary"
+    };
+
+    private static string GetOpBadge(OperationStatus s) => s switch
+    {
+        OperationStatus.Succeeded => "bg-success",
+        OperationStatus.Failed => "bg-danger",
+        OperationStatus.InProgress => "bg-info",
+        _ => "bg-secondary"
+    };
+}

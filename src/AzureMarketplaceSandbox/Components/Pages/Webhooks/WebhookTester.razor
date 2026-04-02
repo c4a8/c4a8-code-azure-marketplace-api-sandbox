@@ -1,0 +1,196 @@
+@page "/webhooks"
+@rendermode InteractiveServer
+@inject MarketplaceDbContext Db
+@inject WebhookService WebhookSvc
+@inject IOptions<SandboxOptions> SandboxOptions
+
+<PageTitle>Webhooks</PageTitle>
+
+<h1>Webhook Tester</h1>
+<p class="text-muted">Configured webhook URL: <code>@SandboxOptions.Value.WebhookUrl</code></p>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h5>Send Webhook</h5>
+        <div class="mb-3">
+            <label class="form-label">Subscription</label>
+            <InputSelect class="form-control" @bind-Value="_selectedSubscriptionId">
+                <option value="">-- Select --</option>
+                @foreach (var sub in _subscriptions)
+                {
+                    <option value="@sub.Id">@sub.Name (@sub.Id.ToString()[..8]...) - @sub.SaasSubscriptionStatus</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Event Type</label>
+            <InputSelect class="form-control" @bind-Value="_selectedAction">
+                @foreach (var action in Enum.GetValues<OperationAction>())
+                {
+                    <option value="@action">@action</option>
+                }
+            </InputSelect>
+        </div>
+
+        @if (_selectedAction == OperationAction.ChangePlan)
+        {
+            <div class="mb-3">
+                <label class="form-label">New Plan ID</label>
+                <InputText class="form-control" @bind-Value="_newPlanId" />
+            </div>
+        }
+        @if (_selectedAction == OperationAction.ChangeQuantity)
+        {
+            <div class="mb-3">
+                <label class="form-label">New Quantity</label>
+                <InputNumber class="form-control" @bind-Value="_newQuantity" />
+            </div>
+        }
+
+        <button class="btn btn-primary" @onclick="SendWebhook" disabled="@(string.IsNullOrEmpty(_selectedSubscriptionId))">
+            Send Webhook
+        </button>
+
+        @if (_sendMessage is not null)
+        {
+            <div class="alert @(_sendError ? "alert-danger" : "alert-success") mt-2">@_sendMessage</div>
+        }
+    </div>
+</div>
+
+<hr />
+<h4>Delivery Log</h4>
+
+@if (_logs.Count == 0)
+{
+    <p class="text-muted">No webhook deliveries yet.</p>
+}
+else
+{
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Subscription</th>
+                <th>Action</th>
+                <th>Status</th>
+                <th>Response</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var log in _logs)
+            {
+                <tr>
+                    <td>@log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    <td>@log.SubscriptionId.ToString()[..8]...</td>
+                    <td>@log.Action</td>
+                    <td>
+                        @if (log.Success)
+                        {
+                            <span class="badge bg-success">OK</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Failed</span>
+                        }
+                    </td>
+                    <td>@(log.ResponseStatusCode?.ToString() ?? "-")</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleDetail(log.Id)">
+                            @(_expandedLogId == log.Id ? "Hide" : "Show")
+                        </button>
+                    </td>
+                </tr>
+                @if (_expandedLogId == log.Id)
+                {
+                    <tr>
+                        <td colspan="6">
+                            <div class="p-2">
+                                @if (log.ErrorMessage is not null)
+                                {
+                                    <p><strong>Error:</strong> @log.ErrorMessage</p>
+                                }
+                                <strong>Payload:</strong>
+                                <pre class="bg-light p-2" style="max-height:300px;overflow:auto;font-size:0.85em;">@FormatJson(log.PayloadJson)</pre>
+                                @if (log.ResponseBody is not null)
+                                {
+                                    <strong>Response Body:</strong>
+                                    <pre class="bg-light p-2" style="max-height:200px;overflow:auto;font-size:0.85em;">@log.ResponseBody</pre>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Subscription> _subscriptions = [];
+    private List<WebhookDeliveryLog> _logs = [];
+    private string _selectedSubscriptionId = string.Empty;
+    private OperationAction _selectedAction = OperationAction.ChangePlan;
+    private string _newPlanId = string.Empty;
+    private int _newQuantity = 1;
+    private string? _sendMessage;
+    private bool _sendError;
+    private Guid? _expandedLogId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _subscriptions = await Db.Subscriptions.OrderByDescending(s => s.Created).ToListAsync();
+        await LoadLogs();
+    }
+
+    private async Task LoadLogs()
+    {
+        _logs = await Db.WebhookDeliveryLogs
+            .OrderByDescending(l => l.Timestamp)
+            .Take(50)
+            .ToListAsync();
+    }
+
+    private async Task SendWebhook()
+    {
+        _sendMessage = null;
+        if (!Guid.TryParse(_selectedSubscriptionId, out var subId))
+        {
+            _sendMessage = "Select a subscription.";
+            _sendError = true;
+            return;
+        }
+
+        try
+        {
+            await WebhookSvc.SendWebhookAsync(subId, _selectedAction,
+                newPlanId: _selectedAction == OperationAction.ChangePlan ? _newPlanId : null,
+                newQuantity: _selectedAction == OperationAction.ChangeQuantity ? _newQuantity : null);
+            _sendMessage = $"Webhook '{_selectedAction}' sent.";
+            _sendError = false;
+        }
+        catch (Exception ex)
+        {
+            _sendMessage = $"Error: {ex.Message}";
+            _sendError = true;
+        }
+
+        await LoadLogs();
+    }
+
+    private void ToggleDetail(Guid logId)
+    {
+        _expandedLogId = _expandedLogId == logId ? null : logId;
+    }
+
+    private static string FormatJson(string json)
+    {
+        try
+        {
+            var doc = System.Text.Json.JsonDocument.Parse(json);
+            return System.Text.Json.JsonSerializer.Serialize(doc, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch { return json; }
+    }
+}

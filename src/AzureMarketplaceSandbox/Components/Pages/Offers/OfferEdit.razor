@@ -1,0 +1,232 @@
+@page "/offers/{OfferId}"
+@rendermode InteractiveServer
+@inject MarketplaceDbContext Db
+@inject NavigationManager Nav
+
+<PageTitle>Edit Offer - @OfferId</PageTitle>
+
+@if (_offer is null)
+{
+    <p>Offer not found.</p>
+}
+else
+{
+    <h1>Offer: @_offer.OfferId</h1>
+    <p><strong>Publisher:</strong> @_offer.PublisherId | <strong>Display Name:</strong> @_offer.DisplayName</p>
+
+    <hr />
+    <h4>Plans</h4>
+
+    <div class="mb-3">
+        <h6>Add Plan</h6>
+        <EditForm Model="_newPlan" OnValidSubmit="AddPlan" FormName="AddPlan">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label">Plan ID</label>
+                    <InputText class="form-control" @bind-Value="_newPlan.PlanId" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Display Name</label>
+                    <InputText class="form-control" @bind-Value="_newPlan.DisplayName" />
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">Min Qty</label>
+                    <InputNumber class="form-control" @bind-Value="_newPlan.MinQuantity" />
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">Max Qty</label>
+                    <InputNumber class="form-control" @bind-Value="_newPlan.MaxQuantity" />
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check mt-4">
+                        <InputCheckbox class="form-check-input" @bind-Value="_newPlan.IsPricePerSeat" />
+                        <label class="form-check-label">Per Seat</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm">Add Plan</button>
+                </div>
+            </div>
+        </EditForm>
+        @if (_planError is not null)
+        {
+            <div class="alert alert-danger mt-2">@_planError</div>
+        }
+    </div>
+
+    @if (_offer.Plans.Count == 0)
+    {
+        <p class="text-muted">No plans yet.</p>
+    }
+    else
+    {
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>Plan ID</th>
+                    <th>Display Name</th>
+                    <th>Per Seat</th>
+                    <th>Min/Max Qty</th>
+                    <th>Dimensions</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var plan in _offer.Plans)
+                {
+                    <tr>
+                        <td>@plan.PlanId</td>
+                        <td>@plan.DisplayName</td>
+                        <td>@(plan.IsPricePerSeat ? "Yes" : "No")</td>
+                        <td>@plan.MinQuantity - @plan.MaxQuantity</td>
+                        <td>@plan.MeteringDimensions.Count</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" @onclick="() => RemovePlan(plan)">Remove</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <hr />
+    <h4>Metering Dimensions</h4>
+    <p class="text-muted">Add dimensions to a specific plan.</p>
+
+    <EditForm Model="_newDimension" OnValidSubmit="AddDimension" FormName="AddDimension">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label">Plan</label>
+                <InputSelect class="form-control" @bind-Value="_selectedPlanId">
+                    <option value="0">-- Select --</option>
+                    @foreach (var plan in _offer.Plans)
+                    {
+                        <option value="@plan.Id">@plan.PlanId</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Dimension ID</label>
+                <InputText class="form-control" @bind-Value="_newDimension.DimensionId" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Display Name</label>
+                <InputText class="form-control" @bind-Value="_newDimension.DisplayName" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Unit of Measure</label>
+                <InputText class="form-control" @bind-Value="_newDimension.UnitOfMeasure" />
+            </div>
+            <div class="col-md-1">
+                <label class="form-label">Price</label>
+                <InputNumber class="form-control" @bind-Value="_newDimension.PricePerUnit" />
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary btn-sm">Add</button>
+            </div>
+        </div>
+    </EditForm>
+    @if (_dimError is not null)
+    {
+        <div class="alert alert-danger mt-2">@_dimError</div>
+    }
+
+    @foreach (var plan in _offer.Plans.Where(p => p.MeteringDimensions.Count > 0))
+    {
+        <h6 class="mt-3">@plan.PlanId</h6>
+        <table class="table table-sm">
+            <thead>
+                <tr><th>Dimension ID</th><th>Display Name</th><th>Unit</th><th>Price/Unit</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var dim in plan.MeteringDimensions)
+                {
+                    <tr>
+                        <td>@dim.DimensionId</td>
+                        <td>@dim.DisplayName</td>
+                        <td>@dim.UnitOfMeasure</td>
+                        <td>@dim.PricePerUnit @dim.Currency</td>
+                        <td><button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveDimension(dim)">Remove</button></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <div class="mt-3">
+        <a href="offers" class="btn btn-outline-secondary">Back to Offers</a>
+    </div>
+}
+
+@code {
+    [Parameter] public string OfferId { get; set; } = string.Empty;
+
+    private Offer? _offer;
+    private Plan _newPlan = new() { MaxQuantity = 100 };
+    private MeteringDimension _newDimension = new();
+    private int _selectedPlanId;
+    private string? _planError, _dimError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOffer();
+    }
+
+    private async Task LoadOffer()
+    {
+        _offer = await Db.Offers
+            .Include(o => o.Plans)
+            .ThenInclude(p => p.MeteringDimensions)
+            .FirstOrDefaultAsync(o => o.OfferId == OfferId);
+    }
+
+    private async Task AddPlan()
+    {
+        _planError = null;
+        if (string.IsNullOrWhiteSpace(_newPlan.PlanId))
+        {
+            _planError = "Plan ID is required.";
+            return;
+        }
+        _newPlan.OfferId = OfferId;
+        Db.Plans.Add(_newPlan);
+        await Db.SaveChangesAsync();
+        _newPlan = new() { MaxQuantity = 100 };
+        await LoadOffer();
+    }
+
+    private async Task RemovePlan(Plan plan)
+    {
+        Db.Plans.Remove(plan);
+        await Db.SaveChangesAsync();
+        await LoadOffer();
+    }
+
+    private async Task AddDimension()
+    {
+        _dimError = null;
+        if (_selectedPlanId == 0)
+        {
+            _dimError = "Select a plan.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_newDimension.DimensionId))
+        {
+            _dimError = "Dimension ID is required.";
+            return;
+        }
+        _newDimension.PlanId = _selectedPlanId;
+        Db.MeteringDimensions.Add(_newDimension);
+        await Db.SaveChangesAsync();
+        _newDimension = new();
+        _selectedPlanId = 0;
+        await LoadOffer();
+    }
+
+    private async Task RemoveDimension(MeteringDimension dim)
+    {
+        Db.MeteringDimensions.Remove(dim);
+        await Db.SaveChangesAsync();
+        await LoadOffer();
+    }
+}

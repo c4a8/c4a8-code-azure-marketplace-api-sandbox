@@ -1,0 +1,53 @@
+using AzureMarketplaceSandbox.Data;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace AzureMarketplaceSandbox.Tests.Infrastructure;
+
+public class SandboxWebApplicationFactory : WebApplicationFactory<Program>
+{
+    private readonly string _dbName = $"TestDb-{Guid.NewGuid()}";
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseSetting("DatabaseProvider", "InMemory");
+
+        builder.ConfigureServices(services =>
+        {
+            // Remove all DbContext-related registrations
+            var descriptors = services
+                .Where(d => d.ServiceType == typeof(DbContextOptions<MarketplaceDbContext>)
+                         || d.ServiceType == typeof(DbContextOptions)
+                         || d.ServiceType.FullName?.Contains("EntityFrameworkCore") == true)
+                .ToList();
+            foreach (var d in descriptors)
+                services.Remove(d);
+
+            // Re-register with InMemory provider
+            services.AddDbContext<MarketplaceDbContext>(options =>
+            {
+                options.UseInMemoryDatabase(_dbName);
+            });
+        });
+
+        builder.UseEnvironment("Development");
+    }
+
+    public async Task SeedAsync(Func<MarketplaceDbContext, Task> seedAction)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<MarketplaceDbContext>();
+        await db.Database.EnsureCreatedAsync();
+        await seedAction(db);
+    }
+
+    public HttpClient CreateAuthenticatedClient()
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "test-token");
+        return client;
+    }
+}

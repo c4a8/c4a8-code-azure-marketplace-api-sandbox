@@ -1,0 +1,99 @@
+@page "/metering"
+@rendermode InteractiveServer
+@inject MarketplaceDbContext Db
+
+<PageTitle>Metering Usage Log</PageTitle>
+
+<h1>Metering Usage Log</h1>
+
+<div class="row mb-3 g-2 align-items-end">
+    <div class="col-md-2">
+        <label class="form-label">From</label>
+        <InputDate class="form-control" @bind-Value="_startDate" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">To</label>
+        <InputDate class="form-control" @bind-Value="_endDate" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Plan</label>
+        <InputText class="form-control" @bind-Value="_filterPlan" placeholder="any" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Dimension</label>
+        <InputText class="form-control" @bind-Value="_filterDimension" placeholder="any" />
+    </div>
+    <div class="col-md-2">
+        <button class="btn btn-primary" @onclick="LoadEvents">Filter</button>
+    </div>
+</div>
+
+@if (_events.Count == 0)
+{
+    <p class="text-muted">No usage events found.</p>
+}
+else
+{
+    <p>@_events.Count event(s) found.</p>
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Effective Time</th>
+                <th>Resource (Subscription)</th>
+                <th>Plan</th>
+                <th>Dimension</th>
+                <th>Quantity</th>
+                <th>Status</th>
+                <th>Message Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var e in _events)
+            {
+                <tr>
+                    <td>@e.EffectiveStartTime.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>@e.ResourceId.ToString()[..8]...</td>
+                    <td>@e.PlanId</td>
+                    <td>@e.Dimension</td>
+                    <td>@e.Quantity</td>
+                    <td><span class="badge @GetBadge(e.Status)">@e.Status</span></td>
+                    <td>@e.MessageTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private DateTime _startDate = DateTime.UtcNow.AddDays(-7);
+    private DateTime _endDate = DateTime.UtcNow.AddDays(1);
+    private string _filterPlan = string.Empty;
+    private string _filterDimension = string.Empty;
+    private List<UsageEvent> _events = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEvents();
+    }
+
+    private async Task LoadEvents()
+    {
+        var query = Db.UsageEvents
+            .Where(e => e.EffectiveStartTime >= _startDate && e.EffectiveStartTime <= _endDate);
+
+        if (!string.IsNullOrWhiteSpace(_filterPlan))
+            query = query.Where(e => e.PlanId == _filterPlan);
+
+        if (!string.IsNullOrWhiteSpace(_filterDimension))
+            query = query.Where(e => e.Dimension == _filterDimension);
+
+        _events = await query.OrderByDescending(e => e.EffectiveStartTime).Take(200).ToListAsync();
+    }
+
+    private static string GetBadge(UsageEventStatus status) => status switch
+    {
+        UsageEventStatus.Accepted => "bg-success",
+        UsageEventStatus.Duplicate => "bg-warning",
+        _ => "bg-danger"
+    };
+}

@@ -1,0 +1,160 @@
+@page "/subscriptions/create"
+@rendermode InteractiveServer
+@inject MarketplaceDbContext Db
+@inject NavigationManager Nav
+@inject IOptions<SandboxOptions> SandboxOptions
+
+<PageTitle>Create Subscription</PageTitle>
+
+<h1>Create Subscription</h1>
+<p class="text-muted">Simulate a marketplace purchase.</p>
+
+<EditForm Model="_model" OnValidSubmit="Create" FormName="CreateSubscription">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label class="form-label">Subscription Name</label>
+                <InputText class="form-control" @bind-Value="_model.Name" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Offer</label>
+                <InputSelect class="form-control" @bind-Value="_model.OfferId" @bind-Value:after="OnOfferChanged">
+                    <option value="">-- Select --</option>
+                    @foreach (var offer in _offers)
+                    {
+                        <option value="@offer.OfferId">@offer.OfferId - @offer.DisplayName</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Plan</label>
+                <InputSelect class="form-control" @bind-Value="_model.PlanId">
+                    <option value="">-- Select --</option>
+                    @foreach (var plan in _availablePlans)
+                    {
+                        <option value="@plan.PlanId">@plan.PlanId - @plan.DisplayName</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Quantity</label>
+                <InputNumber class="form-control" @bind-Value="_model.Quantity" />
+            </div>
+        </div>
+        <div class="col-md-6">
+            <h5>Beneficiary</h5>
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <InputText class="form-control" @bind-Value="_model.BeneficiaryEmail" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Tenant ID</label>
+                <InputText class="form-control" @bind-Value="_model.BeneficiaryTenantId" />
+            </div>
+
+            <h5 class="mt-3">Options</h5>
+            <div class="form-check mb-2">
+                <InputCheckbox class="form-check-input" @bind-Value="_model.IsFreeTrial" />
+                <label class="form-check-label">Free Trial</label>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Term Unit</label>
+                <InputSelect class="form-control" @bind-Value="_model.TermUnit">
+                    <option value="P1M">Monthly (P1M)</option>
+                    <option value="P1Y">Yearly (P1Y)</option>
+                </InputSelect>
+            </div>
+        </div>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger">@_error</div>
+    }
+
+    <button type="submit" class="btn btn-primary">Create Subscription</button>
+    <a href="subscriptions" class="btn btn-outline-secondary ms-2">Cancel</a>
+</EditForm>
+
+@code {
+    private CreateModel _model = new();
+    private List<Offer> _offers = [];
+    private List<Plan> _availablePlans = [];
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _offers = await Db.Offers.Include(o => o.Plans).ToListAsync();
+        _model.BeneficiaryTenantId = Guid.NewGuid().ToString();
+    }
+
+    private void OnOfferChanged()
+    {
+        var offer = _offers.FirstOrDefault(o => o.OfferId == _model.OfferId);
+        _availablePlans = offer?.Plans ?? [];
+        _model.PlanId = string.Empty;
+    }
+
+    private async Task Create()
+    {
+        _error = null;
+
+        if (string.IsNullOrWhiteSpace(_model.Name) ||
+            string.IsNullOrWhiteSpace(_model.OfferId) ||
+            string.IsNullOrWhiteSpace(_model.PlanId))
+        {
+            _error = "Name, Offer, and Plan are required.";
+            return;
+        }
+
+        var offer = _offers.FirstOrDefault(o => o.OfferId == _model.OfferId);
+        if (offer is null)
+        {
+            _error = "Invalid offer.";
+            return;
+        }
+
+        var subscription = new Subscription
+        {
+            Name = _model.Name,
+            PublisherId = offer.PublisherId,
+            OfferId = _model.OfferId,
+            PlanId = _model.PlanId,
+            Quantity = _model.Quantity,
+            IsFreeTrial = _model.IsFreeTrial,
+            IsTest = true,
+            Beneficiary = new AadInfo
+            {
+                EmailId = _model.BeneficiaryEmail,
+                TenantId = _model.BeneficiaryTenantId
+            },
+            Purchaser = new AadInfo
+            {
+                EmailId = _model.BeneficiaryEmail,
+                TenantId = _model.BeneficiaryTenantId
+            },
+            Term = new SubscriptionTerm
+            {
+                TermUnit = _model.TermUnit
+            },
+            SaasSubscriptionStatus = SaasSubscriptionStatus.PendingFulfillmentStart
+        };
+
+        Db.Subscriptions.Add(subscription);
+        await Db.SaveChangesAsync();
+
+        Nav.NavigateTo($"subscriptions/{subscription.Id}");
+    }
+
+    private class CreateModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string OfferId { get; set; } = string.Empty;
+        public string PlanId { get; set; } = string.Empty;
+        public int Quantity { get; set; } = 1;
+        public string BeneficiaryEmail { get; set; } = "test@contoso.com";
+        public string BeneficiaryTenantId { get; set; } = string.Empty;
+        public bool IsFreeTrial { get; set; }
+        public string TermUnit { get; set; } = "P1M";
+    }
+}

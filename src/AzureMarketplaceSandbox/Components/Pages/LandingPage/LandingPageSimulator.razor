@@ -1,0 +1,138 @@
+@page "/landing-page"
+@rendermode InteractiveServer
+@inject MarketplaceDbContext Db
+@inject TokenService TokenSvc
+@inject IOptions<SandboxOptions> SandboxOptions
+
+<PageTitle>Landing Page Simulator</PageTitle>
+
+<h1>Landing Page Simulator</h1>
+<p class="text-muted">Generate marketplace tokens and simulate the landing page redirect flow.</p>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h5>Generate Token</h5>
+        <div class="mb-3">
+            <label class="form-label">Subscription (PendingFulfillmentStart)</label>
+            <InputSelect class="form-control" @bind-Value="_selectedSubscriptionId">
+                <option value="">-- Select --</option>
+                @foreach (var sub in _pendingSubscriptions)
+                {
+                    <option value="@sub.Id">@sub.Name (@sub.Id.ToString()[..8]...)</option>
+                }
+            </InputSelect>
+        </div>
+
+        <button class="btn btn-primary" @onclick="GenerateToken" disabled="@(string.IsNullOrEmpty(_selectedSubscriptionId))">
+            Generate Token
+        </button>
+
+        @if (_generatedToken is not null)
+        {
+            <div class="mt-3 p-3 bg-light border rounded">
+                <p><strong>Token:</strong></p>
+                <code class="d-block mb-2" style="word-break:break-all;">@_generatedToken</code>
+
+                <p><strong>Landing Page URL:</strong></p>
+                <code class="d-block mb-2" style="word-break:break-all;">@_landingPageUrl</code>
+
+                <p><strong>Resolve API call:</strong></p>
+                <pre class="bg-white p-2" style="font-size:0.85em;">POST @(SandboxOptions.Value.BaseUrl)/api/saas/subscriptions/resolve?api-version=2018-08-31
+Authorization: Bearer &lt;token&gt;
+x-ms-marketplace-token: @_generatedToken</pre>
+            </div>
+        }
+
+        @if (_error is not null)
+        {
+            <div class="alert alert-danger mt-2">@_error</div>
+        }
+    </div>
+</div>
+
+<hr />
+<h4>Active Tokens</h4>
+
+@if (_tokens.Count == 0)
+{
+    <p class="text-muted">No tokens generated yet.</p>
+}
+else
+{
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Token</th>
+                <th>Subscription</th>
+                <th>Created</th>
+                <th>Expires</th>
+                <th>Resolved</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var t in _tokens)
+            {
+                <tr>
+                    <td><code>@t.Token[..Math.Min(20, t.Token.Length)]...</code></td>
+                    <td>@t.SubscriptionId.ToString()[..8]...</td>
+                    <td>@t.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>@t.ExpiresAt.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>
+                        @if (t.IsResolved)
+                        {
+                            <span class="badge bg-success">Yes</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">No</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Subscription> _pendingSubscriptions = [];
+    private List<MarketplaceToken> _tokens = [];
+    private string _selectedSubscriptionId = string.Empty;
+    private string? _generatedToken;
+    private string? _landingPageUrl;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _pendingSubscriptions = await Db.Subscriptions
+            .Where(s => s.SaasSubscriptionStatus == SaasSubscriptionStatus.PendingFulfillmentStart)
+            .OrderByDescending(s => s.Created)
+            .ToListAsync();
+        await LoadTokens();
+    }
+
+    private async Task LoadTokens()
+    {
+        _tokens = await Db.MarketplaceTokens
+            .OrderByDescending(t => t.CreatedAt)
+            .Take(50)
+            .ToListAsync();
+    }
+
+    private async Task GenerateToken()
+    {
+        _error = null;
+        _generatedToken = null;
+
+        if (!Guid.TryParse(_selectedSubscriptionId, out var subId))
+        {
+            _error = "Select a subscription.";
+            return;
+        }
+
+        _generatedToken = await TokenSvc.GenerateTokenAsync(subId);
+        var landingBaseUrl = SandboxOptions.Value.LandingPageUrl.TrimEnd('/');
+        _landingPageUrl = $"{landingBaseUrl}?token={Uri.EscapeDataString(_generatedToken)}";
+
+        await LoadTokens();
+    }
+}

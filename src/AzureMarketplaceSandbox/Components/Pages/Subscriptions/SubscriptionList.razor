@@ -1,0 +1,67 @@
+@page "/subscriptions"
+@rendermode InteractiveServer
+@inject MarketplaceDbContext Db
+@inject NavigationManager Nav
+
+<PageTitle>Subscriptions</PageTitle>
+
+<h1>Subscriptions</h1>
+
+<div class="mb-3">
+    <a href="subscriptions/create" class="btn btn-primary">Create Subscription</a>
+</div>
+
+@if (_subscriptions.Count == 0)
+{
+    <p class="text-muted">No subscriptions yet. Create one to simulate a marketplace purchase.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Offer</th>
+                <th>Plan</th>
+                <th>Qty</th>
+                <th>Status</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var sub in _subscriptions)
+            {
+                <tr>
+                    <td><a href="subscriptions/@sub.Id">@sub.Id.ToString()[..8]...</a></td>
+                    <td>@sub.Name</td>
+                    <td>@sub.OfferId</td>
+                    <td>@sub.PlanId</td>
+                    <td>@sub.Quantity</td>
+                    <td><span class="badge @GetStatusBadge(sub.SaasSubscriptionStatus)">@sub.SaasSubscriptionStatus</span></td>
+                    <td>@sub.Created.ToString("yyyy-MM-dd HH:mm")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Subscription> _subscriptions = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _subscriptions = await Db.Subscriptions
+            .OrderByDescending(s => s.Created)
+            .ToListAsync();
+    }
+
+    private static string GetStatusBadge(SaasSubscriptionStatus status) => status switch
+    {
+        SaasSubscriptionStatus.PendingFulfillmentStart => "bg-primary",
+        SaasSubscriptionStatus.Subscribed => "bg-success",
+        SaasSubscriptionStatus.Suspended => "bg-warning",
+        SaasSubscriptionStatus.Unsubscribed => "bg-secondary",
+        _ => "bg-secondary"
+    };
+}

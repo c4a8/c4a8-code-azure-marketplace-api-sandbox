@@ -1,0 +1,20 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+
+namespace AzureMarketplaceSandbox.Domain.Models;
+
+public class Offer
+{
+    [Key]
+    [JsonPropertyName("offerId")]
+    public string OfferId { get; set; } = string.Empty;
+
+    [JsonPropertyName("publisherId")]
+    public string PublisherId { get; set; } = string.Empty;
+
+    [JsonPropertyName("displayName")]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [JsonPropertyName("plans")]
+    public List<Plan> Plans { get; set; } = [];
+}
