@@ -22,7 +22,7 @@ public class MeteringDimension
     public string DisplayName { get; set; } = string.Empty;
 
     [JsonPropertyName("currency")]
-    public string Currency => Offer?.Currency ?? "USD";
+    public string Currency => Offer?.Currency ?? "EUR";
 
     [JsonIgnore]
     public string OfferId { get; set; } = string.Empty;

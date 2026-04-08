@@ -57,7 +57,7 @@ public class SeedDataService(
             MinQuantity = 0,
             MaxQuantity = 1,
             HasFreeTrials = false,
-            Market = "US",
+            Market = "DE",
             BillingTermUnit = "P1M",
             SubscriptionTermUnit = "P1M"
         };
@@ -70,7 +70,7 @@ public class SeedDataService(
             MinQuantity = 1,
             MaxQuantity = 50,
             HasFreeTrials = true,
-            Market = "US",
+            Market = "DE",
             BillingTermUnit = "P1M",
             SubscriptionTermUnit = "P3M"
         };
@@ -83,7 +83,7 @@ public class SeedDataService(
             MinQuantity = 1,
             MaxQuantity = 200,
             HasFreeTrials = false,
-            Market = "US",
+            Market = "DE",
             BillingTermUnit = "P1Y",
             SubscriptionTermUnit = "P1Y"
         };
@@ -93,7 +93,7 @@ public class SeedDataService(
             OfferId = "contoso-saas-offer",
             PublisherId = publisherId,
             DisplayName = "Contoso Cloud Solution",
-            Currency = "USD",
+            Currency = "EUR",
             Plans = [freePlan, silverPlan, goldPlan],
             MeteringDimensions = [apiCalls, storageGb, computeHours]
         };

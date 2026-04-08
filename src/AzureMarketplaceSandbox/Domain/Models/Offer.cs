@@ -16,7 +16,7 @@ public class Offer
     public string DisplayName { get; set; } = string.Empty;
 
     [JsonPropertyName("currency")]
-    public string Currency { get; set; } = "USD";
+    public string Currency { get; set; } = "EUR";
 
     [JsonPropertyName("plans")]
     public List<Plan> Plans { get; set; } = [];

@@ -37,7 +37,7 @@ public class Plan
     public bool IsStopSell { get; set; }
 
     [JsonPropertyName("market")]
-    public string Market { get; set; } = "US";
+    public string Market { get; set; } = "DE";
 
     [JsonIgnore]
     public string BillingTermUnit { get; set; } = "P1M";
