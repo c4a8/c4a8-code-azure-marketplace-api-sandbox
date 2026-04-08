@@ -28,7 +28,7 @@
             </div>
             <div class="mb-3">
                 <label class="form-label">Plan</label>
-                <InputSelect class="form-control" @bind-Value="_model.PlanId">
+                <InputSelect class="form-control" @bind-Value="_model.PlanId" @bind-Value:after="OnPlanChanged">
                     <option value="">-- Select --</option>
                     @foreach (var plan in _availablePlans)
                     {
@@ -38,7 +38,7 @@
             </div>
             <div class="mb-3">
                 <label class="form-label">Quantity</label>
-                <InputNumber class="form-control" @bind-Value="_model.Quantity" />
+                <InputNumber class="form-control" @bind-Value="_model.Quantity" disabled="@(!_selectedPlanIsPerSeat)" />
             </div>
         </div>
         <div class="col-md-6">
@@ -73,6 +73,7 @@
     private CreateModel _model = new();
     private List<Offer> _offers = [];
     private List<Plan> _availablePlans = [];
+    private bool _selectedPlanIsPerSeat;
     private string? _error;
 
     protected override async Task OnInitializedAsync()
@@ -86,6 +87,13 @@
         var offer = _offers.FirstOrDefault(o => o.OfferId == _model.OfferId);
         _availablePlans = offer?.Plans ?? [];
         _model.PlanId = string.Empty;
+        _selectedPlanIsPerSeat = false;
+    }
+
+    private void OnPlanChanged()
+    {
+        var plan = _availablePlans.FirstOrDefault(p => p.PlanId == _model.PlanId);
+        _selectedPlanIsPerSeat = plan?.IsPricePerSeat ?? false;
     }
 
     private async Task Create()
