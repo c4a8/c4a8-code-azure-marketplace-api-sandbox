@@ -8,6 +8,7 @@ public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options
     public DbSet<Offer> Offers => Set<Offer>();
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<MeteringDimension> MeteringDimensions => Set<MeteringDimension>();
+    public DbSet<PlanMeteringDimension> PlanMeteringDimensions => Set<PlanMeteringDimension>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Operation> Operations => Set<Operation>();
     public DbSet<UsageEvent> UsageEvents => Set<UsageEvent>();
@@ -22,13 +23,30 @@ public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options
             entity.HasMany(e => e.Plans)
                 .WithOne(p => p.Offer)
                 .HasForeignKey(p => p.OfferId);
+            entity.HasMany(e => e.MeteringDimensions)
+                .WithOne(d => d.Offer)
+                .HasForeignKey(d => d.OfferId);
         });
 
         modelBuilder.Entity<Plan>(entity =>
         {
-            entity.HasMany(e => e.MeteringDimensions)
-                .WithOne(d => d.Plan)
-                .HasForeignKey(d => d.PlanId);
+            entity.Ignore(e => e.MeteringDimensions);
+        });
+
+        modelBuilder.Entity<MeteringDimension>(entity =>
+        {
+            entity.Ignore(e => e.Currency);
+        });
+
+        modelBuilder.Entity<PlanMeteringDimension>(entity =>
+        {
+            entity.HasKey(e => new { e.PlanId, e.MeteringDimensionId });
+            entity.HasOne(e => e.Plan)
+                .WithMany(p => p.PlanMeteringDimensions)
+                .HasForeignKey(e => e.PlanId);
+            entity.HasOne(e => e.MeteringDimension)
+                .WithMany(d => d.PlanMeteringDimensions)
+                .HasForeignKey(e => e.MeteringDimensionId);
         });
 
         modelBuilder.Entity<Subscription>(entity =>

@@ -52,7 +52,9 @@ public class SubscriptionService(MarketplaceDbContext db)
             return [];
 
         return await db.Plans
-            .Include(p => p.MeteringDimensions)
+            .Include(p => p.PlanMeteringDimensions)
+                .ThenInclude(pmd => pmd.MeteringDimension)
+                    .ThenInclude(d => d.Offer)
             .Where(p => p.OfferId == subscription.OfferId)
             .ToListAsync();
     }

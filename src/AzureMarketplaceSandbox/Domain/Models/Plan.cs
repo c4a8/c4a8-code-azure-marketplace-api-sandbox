@@ -39,8 +39,12 @@ public class Plan
     [JsonPropertyName("market")]
     public string Market { get; set; } = "US";
 
+    [JsonIgnore]
+    public List<PlanMeteringDimension> PlanMeteringDimensions { get; set; } = [];
+
     [JsonPropertyName("meteringDimensions")]
-    public List<MeteringDimension> MeteringDimensions { get; set; } = [];
+    public List<MeteringDimension> MeteringDimensions =>
+        PlanMeteringDimensions.Select(pmd => pmd.MeteringDimension).ToList();
 
     [JsonIgnore]
     public string OfferId { get; set; } = string.Empty;

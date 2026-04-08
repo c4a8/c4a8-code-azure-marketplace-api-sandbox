@@ -102,12 +102,11 @@ public class MeteringService(MarketplaceDbContext db)
         if (subscription.SaasSubscriptionStatus != SaasSubscriptionStatus.Subscribed)
             return UsageEventStatus.ResourceNotActive;
 
-        // Validate dimension exists in the plan
-        var dimensionExists = await db.MeteringDimensions
-            .Include(d => d.Plan)
-            .AnyAsync(d => d.DimensionId == request.Dimension &&
-                           d.Plan.PlanId == request.PlanId &&
-                           d.Plan.OfferId == subscription.OfferId);
+        // Validate dimension exists and is assigned to the plan
+        var dimensionExists = await db.PlanMeteringDimensions
+            .AnyAsync(pmd => pmd.MeteringDimension.DimensionId == request.Dimension &&
+                             pmd.Plan.PlanId == request.PlanId &&
+                             pmd.Plan.OfferId == subscription.OfferId);
         if (!dimensionExists)
             return UsageEventStatus.InvalidDimension;
 

@@ -15,6 +15,12 @@ public class Offer
     [JsonPropertyName("displayName")]
     public string DisplayName { get; set; } = string.Empty;
 
+    [JsonPropertyName("currency")]
+    public string Currency { get; set; } = "USD";
+
     [JsonPropertyName("plans")]
     public List<Plan> Plans { get; set; } = [];
+
+    [JsonIgnore]
+    public List<MeteringDimension> MeteringDimensions { get; set; } = [];
 }

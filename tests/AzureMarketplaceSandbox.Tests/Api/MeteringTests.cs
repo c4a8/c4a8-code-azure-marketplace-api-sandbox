@@ -18,17 +18,27 @@ public class MeteringTests
         var subId = Guid.NewGuid();
         await factory.SeedAsync(async db =>
         {
-            var offer = new Offer { OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1" };
-            var plan = new Plan { PlanId = "silver", DisplayName = "Silver", OfferId = "offer1" };
-            plan.MeteringDimensions.Add(new MeteringDimension
+            var dimension = new MeteringDimension
             {
                 DimensionId = "api-calls",
                 DisplayName = "API Calls",
                 UnitOfMeasure = "calls",
                 PricePerUnit = 0.01m
-            });
+            };
+            var offer = new Offer
+            {
+                OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1", Currency = "USD",
+                MeteringDimensions = [dimension]
+            };
+            var plan = new Plan { PlanId = "silver", DisplayName = "Silver", OfferId = "offer1" };
             offer.Plans.Add(plan);
             db.Offers.Add(offer);
+            await db.SaveChangesAsync();
+            db.PlanMeteringDimensions.Add(new PlanMeteringDimension
+            {
+                PlanId = plan.Id,
+                MeteringDimensionId = dimension.Id
+            });
             db.Subscriptions.Add(new Subscription
             {
                 Id = subId,
@@ -81,15 +91,25 @@ public class MeteringTests
         using (var seedDb = new MarketplaceDbContext(seedOptions))
         {
             await seedDb.Database.EnsureCreatedAsync();
-            var offer = new Offer { OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1" };
-            var plan = new Plan { PlanId = "silver", DisplayName = "Silver", OfferId = "offer1" };
-            plan.MeteringDimensions.Add(new MeteringDimension
+            var dimension = new MeteringDimension
             {
                 DimensionId = "api-calls", DisplayName = "API Calls",
                 UnitOfMeasure = "calls", PricePerUnit = 0.01m
-            });
+            };
+            var offer = new Offer
+            {
+                OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1", Currency = "USD",
+                MeteringDimensions = [dimension]
+            };
+            var plan = new Plan { PlanId = "silver", DisplayName = "Silver", OfferId = "offer1" };
             offer.Plans.Add(plan);
             seedDb.Offers.Add(offer);
+            await seedDb.SaveChangesAsync();
+            seedDb.PlanMeteringDimensions.Add(new PlanMeteringDimension
+            {
+                PlanId = plan.Id,
+                MeteringDimensionId = dimension.Id
+            });
             seedDb.Subscriptions.Add(new Subscription
             {
                 Id = subId, Name = "Test", OfferId = "offer1", PublisherId = "pub1",

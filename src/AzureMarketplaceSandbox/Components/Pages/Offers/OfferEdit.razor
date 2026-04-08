@@ -12,7 +12,7 @@
 else
 {
     <h1>Offer: @_offer.OfferId</h1>
-    <p><strong>Publisher:</strong> @_offer.PublisherId | <strong>Display Name:</strong> @_offer.DisplayName</p>
+    <p><strong>Publisher:</strong> @_offer.PublisherId | <strong>Display Name:</strong> @_offer.DisplayName | <strong>Currency:</strong> @_offer.Currency</p>
 
     <hr />
     <h4>Plans</h4>
@@ -79,7 +79,7 @@ else
                         <td>@plan.DisplayName</td>
                         <td>@(plan.IsPricePerSeat ? "Yes" : "No")</td>
                         <td>@plan.MinQuantity - @plan.MaxQuantity</td>
-                        <td>@plan.MeteringDimensions.Count</td>
+                        <td>@plan.PlanMeteringDimensions.Count</td>
                         <td>
                             <button class="btn btn-sm btn-danger" @onclick="() => RemovePlan(plan)">Remove</button>
                         </td>
@@ -91,20 +91,10 @@ else
 
     <hr />
     <h4>Metering Dimensions</h4>
-    <p class="text-muted">Add dimensions to a specific plan.</p>
+    <p class="text-muted">Dimensions are defined at offer level and assigned to plans below.</p>
 
     <EditForm Model="_newDimension" OnValidSubmit="AddDimension" FormName="AddDimension">
         <div class="row g-2 align-items-end">
-            <div class="col-md-2">
-                <label class="form-label">Plan</label>
-                <InputSelect class="form-control" @bind-Value="_selectedPlanId">
-                    <option value="0">-- Select --</option>
-                    @foreach (var plan in _offer.Plans)
-                    {
-                        <option value="@plan.Id">@plan.PlanId</option>
-                    }
-                </InputSelect>
-            </div>
             <div class="col-md-2">
                 <label class="form-label">Dimension ID</label>
                 <InputText class="form-control" @bind-Value="_newDimension.DimensionId" />
@@ -118,7 +108,7 @@ else
                 <InputText class="form-control" @bind-Value="_newDimension.UnitOfMeasure" />
             </div>
             <div class="col-md-1">
-                <label class="form-label">Price</label>
+                <label class="form-label">Price/Unit</label>
                 <InputNumber class="form-control" @bind-Value="_newDimension.PricePerUnit" />
             </div>
             <div class="col-md-1">
@@ -131,22 +121,56 @@ else
         <div class="alert alert-danger mt-2">@_dimError</div>
     }
 
-    @foreach (var plan in _offer.Plans.Where(p => p.MeteringDimensions.Count > 0))
+    @if (_offer.MeteringDimensions.Count > 0)
     {
-        <h6 class="mt-3">@plan.PlanId</h6>
-        <table class="table table-sm">
+        <table class="table table-sm mt-3">
             <thead>
                 <tr><th>Dimension ID</th><th>Display Name</th><th>Unit</th><th>Price/Unit</th><th></th></tr>
             </thead>
             <tbody>
-                @foreach (var dim in plan.MeteringDimensions)
+                @foreach (var dim in _offer.MeteringDimensions)
                 {
                     <tr>
                         <td>@dim.DimensionId</td>
                         <td>@dim.DisplayName</td>
                         <td>@dim.UnitOfMeasure</td>
-                        <td>@dim.PricePerUnit @dim.Currency</td>
+                        <td>@dim.PricePerUnit @_offer.Currency</td>
                         <td><button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveDimension(dim)">Remove</button></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (_offer.Plans.Count > 0 && _offer.MeteringDimensions.Count > 0)
+    {
+        <hr />
+        <h4>Dimension Assignment per Plan</h4>
+        <p class="text-muted">Select which dimensions are available for each plan.</p>
+
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Dimension</th>
+                    @foreach (var plan in _offer.Plans)
+                    {
+                        <th class="text-center">@plan.PlanId</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var dim in _offer.MeteringDimensions)
+                {
+                    <tr>
+                        <td>@dim.DimensionId (@dim.DisplayName)</td>
+                        @foreach (var plan in _offer.Plans)
+                        {
+                            var isAssigned = plan.PlanMeteringDimensions.Any(pmd => pmd.MeteringDimensionId == dim.Id);
+                            <td class="text-center">
+                                <input type="checkbox" checked="@isAssigned"
+                                       @onchange="(e) => ToggleDimensionAssignment(plan, dim, (bool)e.Value!)" />
+                            </td>
+                        }
                     </tr>
                 }
             </tbody>
@@ -164,7 +188,6 @@ else
     private Offer? _offer;
     private Plan _newPlan = new() { MaxQuantity = 100 };
     private MeteringDimension _newDimension = new();
-    private int _selectedPlanId;
     private string? _planError, _dimError;
 
     protected override async Task OnInitializedAsync()
@@ -176,7 +199,8 @@ else
     {
         _offer = await Db.Offers
             .Include(o => o.Plans)
-            .ThenInclude(p => p.MeteringDimensions)
+                .ThenInclude(p => p.PlanMeteringDimensions)
+            .Include(o => o.MeteringDimensions)
             .FirstOrDefaultAsync(o => o.OfferId == OfferId);
     }
 
@@ -205,27 +229,42 @@ else
     private async Task AddDimension()
     {
         _dimError = null;
-        if (_selectedPlanId == 0)
-        {
-            _dimError = "Select a plan.";
-            return;
-        }
         if (string.IsNullOrWhiteSpace(_newDimension.DimensionId))
         {
             _dimError = "Dimension ID is required.";
             return;
         }
-        _newDimension.PlanId = _selectedPlanId;
+        _newDimension.OfferId = OfferId;
         Db.MeteringDimensions.Add(_newDimension);
         await Db.SaveChangesAsync();
         _newDimension = new();
-        _selectedPlanId = 0;
         await LoadOffer();
     }
 
     private async Task RemoveDimension(MeteringDimension dim)
     {
         Db.MeteringDimensions.Remove(dim);
+        await Db.SaveChangesAsync();
+        await LoadOffer();
+    }
+
+    private async Task ToggleDimensionAssignment(Plan plan, MeteringDimension dim, bool assign)
+    {
+        if (assign)
+        {
+            Db.PlanMeteringDimensions.Add(new PlanMeteringDimension
+            {
+                PlanId = plan.Id,
+                MeteringDimensionId = dim.Id
+            });
+        }
+        else
+        {
+            var existing = await Db.PlanMeteringDimensions
+                .FirstOrDefaultAsync(pmd => pmd.PlanId == plan.Id && pmd.MeteringDimensionId == dim.Id);
+            if (existing is not null)
+                Db.PlanMeteringDimensions.Remove(existing);
+        }
         await Db.SaveChangesAsync();
         await LoadOffer();
     }

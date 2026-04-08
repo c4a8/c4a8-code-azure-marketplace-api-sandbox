@@ -12,9 +12,6 @@ public class MeteringDimension
     [JsonPropertyName("id")]
     public string DimensionId { get; set; } = string.Empty;
 
-    [JsonPropertyName("currency")]
-    public string Currency { get; set; } = "USD";
-
     [JsonPropertyName("pricePerUnit")]
     public decimal PricePerUnit { get; set; }
 
@@ -24,9 +21,15 @@ public class MeteringDimension
     [JsonPropertyName("displayName")]
     public string DisplayName { get; set; } = string.Empty;
 
-    [JsonIgnore]
-    public int PlanId { get; set; }
+    [JsonPropertyName("currency")]
+    public string Currency => Offer?.Currency ?? "USD";
 
     [JsonIgnore]
-    public Plan Plan { get; set; } = null!;
+    public string OfferId { get; set; } = string.Empty;
+
+    [JsonIgnore]
+    public Offer Offer { get; set; } = null!;
+
+    [JsonIgnore]
+    public List<PlanMeteringDimension> PlanMeteringDimensions { get; set; } = [];
 }
