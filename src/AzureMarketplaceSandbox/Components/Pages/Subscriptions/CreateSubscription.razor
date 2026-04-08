@@ -32,7 +32,7 @@
                     <option value="">-- Select --</option>
                     @foreach (var plan in _availablePlans)
                     {
-                        <option value="@plan.PlanId">@plan.PlanId - @plan.DisplayName</option>
+                        <option value="@plan.PlanId">@plan.PlanId - @plan.DisplayName (Billing: @plan.BillingTermUnit, Subscription: @plan.SubscriptionTermUnit)</option>
                     }
                 </InputSelect>
             </div>
