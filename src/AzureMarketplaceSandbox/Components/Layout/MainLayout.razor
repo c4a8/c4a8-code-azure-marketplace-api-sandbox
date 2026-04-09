@@ -6,8 +6,13 @@
     </div>
 
     <main>
-        <div class="top-row px-4">
-            <span>Azure Marketplace Sandbox</span>
+        <div class="top-row px-4 d-flex justify-content-end">
+            <AuthorizeView>
+                <Authorized>
+                    <span class="me-2" title="@context.User.Identity?.Name">@context.User.FindFirst("name")?.Value</span>
+                    <a href="authentication/logout" class="btn btn-outline-secondary btn-sm">Logout</a>
+                </Authorized>
+            </AuthorizeView>
         </div>
 
         <article class="content px-4">
