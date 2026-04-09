@@ -1,10 +1,19 @@
 using AzureMarketplaceSandbox.Domain.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace AzureMarketplaceSandbox.Data;
 
 public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options) : DbContext(options)
 {
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        // Migrations are generated with SQLite but may run against SqlServer.
+        // The provider difference causes a false-positive pending-changes warning.
+        optionsBuilder.ConfigureWarnings(w =>
+            w.Ignore(RelationalEventId.PendingModelChangesWarning));
+    }
+
     public DbSet<Offer> Offers => Set<Offer>();
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<MeteringDimension> MeteringDimensions => Set<MeteringDimension>();
