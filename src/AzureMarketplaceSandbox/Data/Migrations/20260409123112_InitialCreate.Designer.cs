@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AzureMarketplaceSandbox.Data.Migrations
 {
     [DbContext(typeof(MarketplaceDbContext))]
-    [Migration("20260409115339_InitialCreate")]
+    [Migration("20260409123112_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -564,13 +564,13 @@ namespace AzureMarketplaceSandbox.Data.Migrations
                     b.HasOne("AzureMarketplaceSandbox.Domain.Models.AadInfo", "Beneficiary")
                         .WithMany()
                         .HasForeignKey("BeneficiaryId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("AzureMarketplaceSandbox.Domain.Models.AadInfo", "Purchaser")
                         .WithMany()
                         .HasForeignKey("PurchaserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("AzureMarketplaceSandbox.Domain.Models.SubscriptionTerm", "Term")

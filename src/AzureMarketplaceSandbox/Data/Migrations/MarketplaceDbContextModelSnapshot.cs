@@ -561,13 +561,13 @@ namespace AzureMarketplaceSandbox.Data.Migrations
                     b.HasOne("AzureMarketplaceSandbox.Domain.Models.AadInfo", "Beneficiary")
                         .WithMany()
                         .HasForeignKey("BeneficiaryId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("AzureMarketplaceSandbox.Domain.Models.AadInfo", "Purchaser")
                         .WithMany()
                         .HasForeignKey("PurchaserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("AzureMarketplaceSandbox.Domain.Models.SubscriptionTerm", "Term")

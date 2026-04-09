@@ -80,8 +80,8 @@ public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options
         modelBuilder.Entity<Subscription>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasOne(e => e.Beneficiary).WithMany().HasForeignKey("BeneficiaryId");
-            entity.HasOne(e => e.Purchaser).WithMany().HasForeignKey("PurchaserId");
+            entity.HasOne(e => e.Beneficiary).WithMany().HasForeignKey("BeneficiaryId").OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Purchaser).WithMany().HasForeignKey("PurchaserId").OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Term).WithMany().HasForeignKey("TermId");
             entity.Property(e => e.SaasSubscriptionStatus).HasConversion<string>();
             entity.Ignore(e => e.AllowedCustomerOperations);

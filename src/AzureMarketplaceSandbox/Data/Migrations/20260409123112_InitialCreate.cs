@@ -217,13 +217,13 @@ namespace AzureMarketplaceSandbox.Data.Migrations
                         column: x => x.BeneficiaryId,
                         principalTable: "AadInfo",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Subscriptions_AadInfo_PurchaserId",
                         column: x => x.PurchaserId,
                         principalTable: "AadInfo",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Subscriptions_SubscriptionTerm_TermId",
                         column: x => x.TermId,
