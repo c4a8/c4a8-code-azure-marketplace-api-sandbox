@@ -126,7 +126,7 @@ public class MeteringTests
         var request = new UsageEventRequest
         {
             ResourceId = subId,
-            Quantity = 10.0,
+            Quantity = 10.0m,
             Dimension = "api-calls",
             EffectiveStartTime = effectiveTime,
             PlanId = "silver"

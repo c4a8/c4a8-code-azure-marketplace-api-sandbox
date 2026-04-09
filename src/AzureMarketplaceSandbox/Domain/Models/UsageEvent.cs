@@ -20,7 +20,7 @@ public class UsageEvent
     public Guid ResourceId { get; set; }
 
     [JsonPropertyName("quantity")]
-    public double Quantity { get; set; }
+    public decimal Quantity { get; set; }
 
     [JsonPropertyName("dimension")]
     public string Dimension { get; set; } = string.Empty;

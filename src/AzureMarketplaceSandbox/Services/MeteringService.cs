@@ -132,7 +132,7 @@ public class MeteringService(MarketplaceDbContext db)
 public record UsageEventRequest
 {
     public Guid ResourceId { get; init; }
-    public double Quantity { get; init; }
+    public decimal Quantity { get; init; }
     public string Dimension { get; init; } = string.Empty;
     public DateTime EffectiveStartTime { get; init; }
     public string PlanId { get; init; } = string.Empty;
