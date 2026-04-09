@@ -37,24 +37,18 @@ public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options
             entity.HasIndex(e => e.OfferId).IsUnique();
             entity.Property(e => e.OfferId).HasMaxLength(128);
             entity.HasMany(e => e.Plans)
-                .WithOne(p => p.Offer)
-                .HasForeignKey(p => p.OfferId)
-                .HasPrincipalKey(e => e.OfferId);
+                .WithOne(p => p.Offer);
             entity.HasMany(e => e.MeteringDimensions)
-                .WithOne(d => d.Offer)
-                .HasForeignKey(d => d.OfferId)
-                .HasPrincipalKey(e => e.OfferId);
+                .WithOne(d => d.Offer);
         });
 
         modelBuilder.Entity<Plan>(entity =>
         {
-            entity.Property(e => e.OfferId).HasMaxLength(128);
             entity.Ignore(e => e.PlanComponents);
         });
 
         modelBuilder.Entity<MeteringDimension>(entity =>
         {
-            entity.Property(e => e.OfferId).HasMaxLength(128);
             entity.Ignore(e => e.Currency);
         });
 

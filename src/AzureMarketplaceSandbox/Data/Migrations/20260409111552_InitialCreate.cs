@@ -55,7 +55,6 @@ namespace AzureMarketplaceSandbox.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Offers", x => x.Id);
-                    table.UniqueConstraint("AK_Offers_OfferId", x => x.OfferId);
                 });
 
             migrationBuilder.CreateTable(
@@ -118,7 +117,7 @@ namespace AzureMarketplaceSandbox.Data.Migrations
                     PricePerUnit = table.Column<decimal>(nullable: false),
                     UnitOfMeasure = table.Column<string>(nullable: false),
                     DisplayName = table.Column<string>(nullable: false),
-                    OfferId = table.Column<string>(maxLength: 128, nullable: false)
+                    OfferId = table.Column<int>(nullable: false)
                 },
                 constraints: table =>
                 {
@@ -127,7 +126,7 @@ namespace AzureMarketplaceSandbox.Data.Migrations
                         name: "FK_MeteringDimensions_Offers_OfferId",
                         column: x => x.OfferId,
                         principalTable: "Offers",
-                        principalColumn: "OfferId",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -150,7 +149,7 @@ namespace AzureMarketplaceSandbox.Data.Migrations
                     SubscriptionTermUnit = table.Column<string>(nullable: false),
                     Price = table.Column<decimal>(nullable: false),
                     TermDescription = table.Column<string>(nullable: false),
-                    OfferId = table.Column<string>(maxLength: 128, nullable: false)
+                    OfferId = table.Column<int>(nullable: false)
                 },
                 constraints: table =>
                 {
@@ -159,7 +158,7 @@ namespace AzureMarketplaceSandbox.Data.Migrations
                         name: "FK_Plans_Offers_OfferId",
                         column: x => x.OfferId,
                         principalTable: "Offers",
-                        principalColumn: "OfferId",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 

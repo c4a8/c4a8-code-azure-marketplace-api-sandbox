@@ -41,7 +41,9 @@ public class SubscriptionServiceTests
     public async Task Activate_FromPending_Succeeds()
     {
         var (db, service) = CreateService();
-        db.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver", OfferId = "offer1", IsPricePerSeat = true });
+        var offer = new Offer { OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1" };
+        offer.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver", IsPricePerSeat = true });
+        db.Offers.Add(offer);
         var sub = CreateSubscription(SaasSubscriptionStatus.PendingFulfillmentStart);
         db.Subscriptions.Add(sub);
         await db.SaveChangesAsync();
@@ -75,7 +77,9 @@ public class SubscriptionServiceTests
         var (db, service) = CreateService();
         var sub = CreateSubscription(SaasSubscriptionStatus.Subscribed);
         db.Subscriptions.Add(sub);
-        db.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver", OfferId = "offer1" });
+        var offer = new Offer { OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1" };
+        offer.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver" });
+        db.Offers.Add(offer);
         await db.SaveChangesAsync();
 
         var op = await service.ChangePlanAsync(sub.Id, "silver");
@@ -88,8 +92,10 @@ public class SubscriptionServiceTests
         var (db, service) = CreateService();
         var sub = CreateSubscription(SaasSubscriptionStatus.Subscribed);
         db.Subscriptions.Add(sub);
-        db.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver", OfferId = "offer1" });
-        db.Plans.Add(new Plan { PlanId = "gold", DisplayName = "Gold", OfferId = "offer1" });
+        var offer = new Offer { OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1" };
+        offer.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver" });
+        offer.Plans.Add(new Plan { PlanId = "gold", DisplayName = "Gold" });
+        db.Offers.Add(offer);
         await db.SaveChangesAsync();
 
         var op = await service.ChangePlanAsync(sub.Id, "gold");

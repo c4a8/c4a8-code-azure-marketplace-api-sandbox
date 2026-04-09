@@ -56,7 +56,7 @@ public class SubscriptionService(MarketplaceDbContext db)
             .Include(p => p.PlanMeteringDimensions)
                 .ThenInclude(pmd => pmd.MeteringDimension)
                     .ThenInclude(d => d.Offer)
-            .Where(p => p.OfferId == subscription.OfferId)
+            .Where(p => p.Offer.OfferId == subscription.OfferId)
             .ToListAsync();
     }
 
@@ -73,7 +73,7 @@ public class SubscriptionService(MarketplaceDbContext db)
             return (false, $"planId '{planId}' does not match the subscription's plan '{subscription.PlanId}'.");
 
         // Check if the plan is seat-based — if so, quantity is required
-        var plan = await db.Plans.FirstOrDefaultAsync(p => p.PlanId == planId && p.OfferId == subscription.OfferId);
+        var plan = await db.Plans.FirstOrDefaultAsync(p => p.PlanId == planId && p.Offer.OfferId == subscription.OfferId);
         if (plan is not null && plan.IsPricePerSeat)
         {
             if (quantity is null || quantity <= 0)
@@ -106,7 +106,7 @@ public class SubscriptionService(MarketplaceDbContext db)
         if (subscription.PlanId == newPlanId)
             return null;
 
-        var planExists = await db.Plans.AnyAsync(p => p.PlanId == newPlanId && p.OfferId == subscription.OfferId);
+        var planExists = await db.Plans.AnyAsync(p => p.PlanId == newPlanId && p.Offer.OfferId == subscription.OfferId);
         if (!planExists)
             return null;
 

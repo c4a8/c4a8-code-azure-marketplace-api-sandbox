@@ -17,8 +17,8 @@ public class FulfillmentOperationsTests
         await factory.SeedAsync(async db =>
         {
             var offer = new Offer { OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1" };
-            offer.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver", OfferId = "offer1" });
-            offer.Plans.Add(new Plan { PlanId = "gold", DisplayName = "Gold", OfferId = "offer1" });
+            offer.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver" });
+            offer.Plans.Add(new Plan { PlanId = "gold", DisplayName = "Gold" });
             db.Offers.Add(offer);
             db.Subscriptions.Add(new Subscription
             {
@@ -77,8 +77,8 @@ public class FulfillmentOperationsTests
         await factory.SeedAsync(async db =>
         {
             var offer = new Offer { OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1" };
-            offer.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver", OfferId = "offer1" });
-            offer.Plans.Add(new Plan { PlanId = "gold", DisplayName = "Gold", OfferId = "offer1" });
+            offer.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver" });
+            offer.Plans.Add(new Plan { PlanId = "gold", DisplayName = "Gold" });
             db.Offers.Add(offer);
             db.Subscriptions.Add(new Subscription
             {

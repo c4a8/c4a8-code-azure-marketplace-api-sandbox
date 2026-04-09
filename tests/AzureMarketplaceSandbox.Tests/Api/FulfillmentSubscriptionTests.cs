@@ -59,7 +59,7 @@ public class FulfillmentSubscriptionTests : IClassFixture<SandboxWebApplicationF
         await factory.SeedAsync(async db =>
         {
             var offer = new Offer { OfferId = "test-offer", PublisherId = "pub1", DisplayName = "Test" };
-            offer.Plans.Add(new Plan { PlanId = "plan1", DisplayName = "Plan 1", OfferId = "test-offer", IsPricePerSeat = true });
+            offer.Plans.Add(new Plan { PlanId = "plan1", DisplayName = "Plan 1", IsPricePerSeat = true });
             db.Offers.Add(offer);
             db.Subscriptions.Add(new Subscription
             {
@@ -127,7 +127,7 @@ public class FulfillmentSubscriptionTests : IClassFixture<SandboxWebApplicationF
         await factory.SeedAsync(async db =>
         {
             var offer = new Offer { OfferId = "test-offer", PublisherId = "pub1", DisplayName = "Test" };
-            offer.Plans.Add(new Plan { PlanId = "free", DisplayName = "Free", OfferId = "test-offer", IsPricePerSeat = false });
+            offer.Plans.Add(new Plan { PlanId = "free", DisplayName = "Free", IsPricePerSeat = false });
             db.Offers.Add(offer);
             db.Subscriptions.Add(new Subscription
             {
@@ -196,8 +196,8 @@ public class FulfillmentSubscriptionTests : IClassFixture<SandboxWebApplicationF
         await factory.SeedAsync(async db =>
         {
             var offer = new Offer { OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1" };
-            offer.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver", OfferId = "offer1" });
-            offer.Plans.Add(new Plan { PlanId = "gold", DisplayName = "Gold", OfferId = "offer1" });
+            offer.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver" });
+            offer.Plans.Add(new Plan { PlanId = "gold", DisplayName = "Gold" });
             db.Offers.Add(offer);
             db.Subscriptions.Add(new Subscription
             {

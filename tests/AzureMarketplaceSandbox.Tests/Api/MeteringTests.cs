@@ -30,7 +30,7 @@ public class MeteringTests
                 OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1", Currency = "USD",
                 MeteringDimensions = [dimension]
             };
-            var plan = new Plan { PlanId = "silver", DisplayName = "Silver", OfferId = "offer1" };
+            var plan = new Plan { PlanId = "silver", DisplayName = "Silver" };
             offer.Plans.Add(plan);
             db.Offers.Add(offer);
             await db.SaveChangesAsync();
@@ -101,7 +101,7 @@ public class MeteringTests
                 OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1", Currency = "USD",
                 MeteringDimensions = [dimension]
             };
-            var plan = new Plan { PlanId = "silver", DisplayName = "Silver", OfferId = "offer1" };
+            var plan = new Plan { PlanId = "silver", DisplayName = "Silver" };
             offer.Plans.Add(plan);
             seedDb.Offers.Add(offer);
             await seedDb.SaveChangesAsync();

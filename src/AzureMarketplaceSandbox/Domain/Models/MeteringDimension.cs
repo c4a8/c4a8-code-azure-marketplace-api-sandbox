@@ -25,9 +25,6 @@ public class MeteringDimension
     public string Currency => Offer?.Currency ?? "EUR";
 
     [JsonIgnore]
-    public string OfferId { get; set; } = string.Empty;
-
-    [JsonIgnore]
     public Offer Offer { get; set; } = null!;
 
     [JsonIgnore]

@@ -97,10 +97,8 @@ namespace AzureMarketplaceSandbox.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasJsonPropertyName("displayName");
 
-                    b.Property<string>("OfferId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
+                    b.Property<int>("OfferId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<decimal>("PricePerUnit")
                         .HasColumnType("TEXT")
@@ -267,10 +265,8 @@ namespace AzureMarketplaceSandbox.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasJsonPropertyName("minQuantity");
 
-                    b.Property<string>("OfferId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("TEXT");
+                    b.Property<int>("OfferId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("PlanId")
                         .IsRequired()
@@ -508,7 +504,6 @@ namespace AzureMarketplaceSandbox.Data.Migrations
                     b.HasOne("AzureMarketplaceSandbox.Domain.Models.Offer", "Offer")
                         .WithMany("MeteringDimensions")
                         .HasForeignKey("OfferId")
-                        .HasPrincipalKey("OfferId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -531,7 +526,6 @@ namespace AzureMarketplaceSandbox.Data.Migrations
                     b.HasOne("AzureMarketplaceSandbox.Domain.Models.Offer", "Offer")
                         .WithMany("Plans")
                         .HasForeignKey("OfferId")
-                        .HasPrincipalKey("OfferId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

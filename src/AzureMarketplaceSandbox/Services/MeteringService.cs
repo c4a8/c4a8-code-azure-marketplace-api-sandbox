@@ -106,7 +106,7 @@ public class MeteringService(MarketplaceDbContext db)
         var dimensionExists = await db.PlanMeteringDimensions
             .AnyAsync(pmd => pmd.MeteringDimension.DimensionId == request.Dimension &&
                              pmd.Plan.PlanId == request.PlanId &&
-                             pmd.Plan.OfferId == subscription.OfferId);
+                             pmd.Plan.Offer.OfferId == subscription.OfferId);
         if (!dimensionExists)
             return UsageEventStatus.InvalidDimension;
 

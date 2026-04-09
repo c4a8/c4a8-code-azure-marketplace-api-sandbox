@@ -264,7 +264,7 @@ else
             _planError = "Subscription Term must use the same base unit (M/Y) as Billing Term.";
             return;
         }
-        _newPlan.OfferId = OfferId;
+        _newPlan.Offer = _offer!;
         Db.Plans.Add(_newPlan);
         await Db.SaveChangesAsync();
         _newPlan = new() { MaxQuantity = 100 };
@@ -286,7 +286,7 @@ else
             _dimError = "Dimension ID is required.";
             return;
         }
-        _newDimension.OfferId = OfferId;
+        _newDimension.Offer = _offer!;
         Db.MeteringDimensions.Add(_newDimension);
         await Db.SaveChangesAsync();
         _newDimension = new();
