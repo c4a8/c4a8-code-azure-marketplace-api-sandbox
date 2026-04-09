@@ -26,14 +26,14 @@ public partial class SubscriptionTerm
         var start = StartDate ?? DateTime.UtcNow;
         var match = TermUnitRegex().Match(TermUnit);
         if (!match.Success)
-            return start.AddMonths(1); // fallback
+            return start.AddMonths(1).AddDays(-1); // fallback
 
         var amount = int.Parse(match.Groups[1].Value);
         var unit = match.Groups[2].Value.ToUpperInvariant();
 
         return unit == "Y"
-            ? start.AddYears(amount)
-            : start.AddMonths(amount);
+            ? start.AddYears(amount).AddDays(-1)
+            : start.AddMonths(amount).AddDays(-1);
     }
 
     [GeneratedRegex(@"^P(\d+)([MY])$", RegexOptions.IgnoreCase)]
