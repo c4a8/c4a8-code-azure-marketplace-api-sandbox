@@ -218,7 +218,7 @@ else
     [Parameter] public string OfferId { get; set; } = string.Empty;
 
     private Offer? _offer;
-    private Plan _newPlan = new() { MaxQuantity = 100 };
+    private Plan _newPlan = new();
     private MeteringDimension _newDimension = new();
     private string? _planError, _dimError;
 
@@ -267,7 +267,7 @@ else
         _newPlan.Offer = _offer!;
         Db.Plans.Add(_newPlan);
         await Db.SaveChangesAsync();
-        _newPlan = new() { MaxQuantity = 100 };
+        _newPlan = new();
         await LoadOffer();
     }
 

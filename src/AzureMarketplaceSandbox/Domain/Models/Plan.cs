@@ -25,7 +25,7 @@ public class Plan
     public int MinQuantity { get; set; }
 
     [JsonPropertyName("maxQuantity")]
-    public int MaxQuantity { get; set; } = 100;
+    public int MaxQuantity { get; set; }
 
     [JsonPropertyName("hasFreeTrials")]
     public bool HasFreeTrials { get; set; }
