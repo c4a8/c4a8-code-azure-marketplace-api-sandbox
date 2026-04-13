@@ -44,6 +44,11 @@ builder.Services.AddAuthentication()
                 : CookieAuthenticationDefaults.AuthenticationScheme;
     });
 
+// Ensure cookie challenges redirect to Entra ID (OIDC) instead of /Account/Login
+builder.Services.PostConfigure<CookieAuthenticationOptions>(
+    CookieAuthenticationDefaults.AuthenticationScheme,
+    options => options.ForwardChallenge = OpenIdConnectDefaults.AuthenticationScheme);
+
 builder.Services.AddAuthorization();
 
 // JSON serialization
