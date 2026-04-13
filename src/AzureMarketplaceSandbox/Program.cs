@@ -82,9 +82,41 @@ var app = builder.Build();
 }
 
 // Configure the HTTP request pipeline.
+// Return JSON for unhandled exceptions on API paths instead of HTML error pages
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "application/json";
+
+            var error = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+            if (app.Environment.IsDevelopment() && error?.Error is { } ex)
+            {
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    message = ex.Message,
+                    code = "InternalServerError",
+                    type = ex.GetType().FullName,
+                    stackTrace = ex.StackTrace
+                });
+            }
+            else
+            {
+                await context.Response.WriteAsJsonAsync(new { message = "An internal server error occurred.", code = "InternalServerError" });
+            }
+        }
+        else
+        {
+            context.Response.Redirect("/Error");
+        }
+    });
+});
+
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
