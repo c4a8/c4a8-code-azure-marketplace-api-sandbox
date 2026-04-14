@@ -29,7 +29,21 @@ else
                 <tr><th>Publisher</th><td>@_sub.PublisherId</td></tr>
                 <tr><th>Free Trial</th><td>@(_sub.IsFreeTrial ? "Yes" : "No")</td></tr>
                 <tr><th>Auto Renew</th><td>@(_sub.AutoRenew ? "Yes" : "No")</td></tr>
-                <tr><th>Term</th><td>@_sub.Term.TermUnit (@_sub.Term.StartDate?.ToString("yyyy-MMM-dd") - @_sub.Term.EndDate?.ToString("yyyy-MMM-dd"))</td></tr>
+                <tr>
+                    <th>Term</th>
+                    <td>
+                        @if (_sub.Term.StartDate.HasValue)
+                        {
+                            <a href="#" @onclick="OpenTermModal" @onclick:preventDefault>
+                                @_sub.Term.TermUnit (@_sub.Term.StartDate.Value.ToString("yyyy-MMM-dd") - @_sub.Term.EndDate?.ToString("yyyy-MMM-dd"))
+                            </a>
+                        }
+                        else
+                        {
+                            @_sub.Term.TermUnit
+                        }
+                    </td>
+                </tr>
                 <tr><th>Created</th><td>@_sub.Created.ToString("yyyy-MMM-dd HH:mm:ss")</td></tr>
             </table>
         </div>
@@ -128,6 +142,37 @@ else
     <div class="mt-3">
         <a href="subscriptions" class="btn btn-outline-secondary">Back to Subscriptions</a>
     </div>
+
+    @if (_showTermModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Term</h5>
+                        <button type="button" class="btn-close" @onclick="CloseTermModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" class="form-control" @bind="_termStartDate" @bind:event="oninput" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">End Date (calculated)</label>
+                            <input type="date" class="form-control" value="@CalculateTermEndDate()?.ToString("yyyy-MM-dd")" disabled />
+                        </div>
+                        <div class="text-muted">
+                            Term unit: @_sub.Term.TermUnit
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseTermModal">Cancel</button>
+                        <button type="button" class="btn btn-primary" @onclick="SaveTerm">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 @code {
@@ -141,6 +186,8 @@ else
     private int _newQuantity = 1;
     private string? _message;
     private bool _isError;
+    private bool _showTermModal;
+    private DateTime _termStartDate = DateTime.Today;
 
     protected override async Task OnInitializedAsync()
     {
@@ -254,6 +301,36 @@ else
     };
 
     private void SetMessage(string msg, bool isError) { _message = msg; _isError = isError; }
+
+    private void OpenTermModal()
+    {
+        _termStartDate = _sub!.Term.StartDate?.Date ?? DateTime.Today;
+        _showTermModal = true;
+    }
+
+    private void CloseTermModal()
+    {
+        _showTermModal = false;
+    }
+
+    private DateTime? CalculateTermEndDate()
+    {
+        var term = new SubscriptionTerm
+        {
+            StartDate = _termStartDate,
+            TermUnit = _sub!.Term.TermUnit
+        };
+        return term.CalculateEndDate();
+    }
+
+    private async Task SaveTerm()
+    {
+        _sub!.Term.StartDate = _termStartDate;
+        _sub.Term.EndDate = CalculateTermEndDate();
+        await Db.SaveChangesAsync();
+        _showTermModal = false;
+        SetMessage("Term updated.", false);
+    }
 
     private static string GetStatusBadge(SaasSubscriptionStatus s) => s switch
     {
