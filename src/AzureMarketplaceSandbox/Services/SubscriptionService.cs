@@ -178,4 +178,44 @@ public class SubscriptionService(MarketplaceDbContext db)
         await db.SaveChangesAsync();
         return operation;
     }
+
+    public async Task<bool> DeleteAsync(Guid subscriptionId)
+    {
+        var subscription = await db.Subscriptions
+            .Include(s => s.Beneficiary)
+            .Include(s => s.Purchaser)
+            .Include(s => s.Term)
+            .FirstOrDefaultAsync(s => s.SubscriptionId == subscriptionId);
+
+        if (subscription is null)
+            return false;
+
+        var operations = await db.Operations
+            .Where(o => o.SubscriptionId == subscriptionId)
+            .ToListAsync();
+        db.Operations.RemoveRange(operations);
+
+        var usageEvents = await db.UsageEvents
+            .Where(u => u.ResourceId == subscriptionId)
+            .ToListAsync();
+        db.UsageEvents.RemoveRange(usageEvents);
+
+        var webhookLogs = await db.WebhookDeliveryLogs
+            .Where(w => w.SubscriptionId == subscriptionId)
+            .ToListAsync();
+        db.WebhookDeliveryLogs.RemoveRange(webhookLogs);
+
+        var tokens = await db.MarketplaceTokens
+            .Where(t => t.SubscriptionId == subscriptionId)
+            .ToListAsync();
+        db.MarketplaceTokens.RemoveRange(tokens);
+
+        db.Remove(subscription.Beneficiary);
+        db.Remove(subscription.Purchaser);
+        db.Remove(subscription.Term);
+        db.Subscriptions.Remove(subscription);
+
+        await db.SaveChangesAsync();
+        return true;
+    }
 }
