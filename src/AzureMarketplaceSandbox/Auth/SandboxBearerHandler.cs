@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
-using AzureMarketplaceSandbox.Configuration;
+using AzureMarketplaceSandbox.Data;
+using AzureMarketplaceSandbox.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace AzureMarketplaceSandbox.Auth;
@@ -9,43 +11,50 @@ namespace AzureMarketplaceSandbox.Auth;
 public class SandboxBearerHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,
-    UrlEncoder encoder,
-    IOptions<AuthOptions> authOptions)
+    UrlEncoder encoder)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     public const string SchemeName = "SandboxBearer";
 
-    private readonly AuthOptions _authOptions = authOptions.Value;
-
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         if (!Request.Headers.TryGetValue("Authorization", out var authHeader))
         {
-            return Task.FromResult(AuthenticateResult.Fail("Missing Authorization header."));
+            return AuthenticateResult.Fail("Missing Authorization header.");
         }
 
         var headerValue = authHeader.ToString();
         if (!headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
-            return Task.FromResult(AuthenticateResult.Fail("Authorization header must use Bearer scheme."));
+            return AuthenticateResult.Fail("Authorization header must use Bearer scheme.");
         }
 
         var token = headerValue["Bearer ".Length..].Trim();
         if (string.IsNullOrEmpty(token))
         {
-            return Task.FromResult(AuthenticateResult.Fail("Bearer token is empty."));
+            return AuthenticateResult.Fail("Bearer token is empty.");
         }
 
-        if (_authOptions.RequiredToken is not null && token != _authOptions.RequiredToken)
+        var db = Context.RequestServices.GetRequiredService<MarketplaceDbContext>();
+        var tenant = await db.Tenants
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(t => t.ApiBearerToken == token);
+        if (tenant is null)
         {
-            return Task.FromResult(AuthenticateResult.Fail("Invalid token."));
+            return AuthenticateResult.Fail("Invalid token.");
         }
 
-        var claims = new[] { new Claim(ClaimTypes.Name, "sandbox-publisher") };
+        var tenantContext = Context.RequestServices.GetRequiredService<ITenantContext>();
+        tenantContext.Set(tenant.Id, tenant.EntraObjectId);
+
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, tenant.EntraObjectId.ToString()),
+            new Claim(ClaimTypes.Name, tenant.DisplayName),
+        };
         var identity = new ClaimsIdentity(claims, SchemeName);
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, SchemeName);
-
-        return Task.FromResult(AuthenticateResult.Success(ticket));
+        return AuthenticateResult.Success(ticket);
     }
 }

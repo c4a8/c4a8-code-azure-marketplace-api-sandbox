@@ -101,4 +101,40 @@ public class SandboxWebApplicationFactory : WebApplicationFactory<Program>
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", TestApiToken);
         return client;
     }
+
+    public async Task<Tenant> CreateTenantAsync(string apiBearerToken, string publisherId = "test-pub")
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<MarketplaceDbContext>();
+        await db.Database.EnsureCreatedAsync();
+        var tenant = new Tenant
+        {
+            EntraObjectId = Guid.NewGuid(),
+            DisplayName = $"Tenant-{apiBearerToken}",
+            ApiBearerToken = apiBearerToken,
+            PublisherId = publisherId,
+            CreatedAt = DateTime.UtcNow,
+            LastLoginAt = DateTime.UtcNow,
+        };
+        db.Tenants.Add(tenant);
+        await db.SaveChangesAsync();
+        return tenant;
+    }
+
+    public HttpClient CreateClientForTenant(Tenant tenant)
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tenant.ApiBearerToken);
+        return client;
+    }
+
+    public async Task SeedForTenantAsync(Tenant tenant, Func<MarketplaceDbContext, Task> seedAction)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<MarketplaceDbContext>();
+        var tenantCtx = scope.ServiceProvider.GetRequiredService<ITenantContext>();
+        tenantCtx.Set(tenant.Id, tenant.EntraObjectId);
+        await seedAction(db);
+    }
 }

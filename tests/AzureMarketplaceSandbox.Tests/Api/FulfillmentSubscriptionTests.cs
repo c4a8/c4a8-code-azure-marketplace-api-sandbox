@@ -27,8 +27,8 @@ public class FulfillmentSubscriptionTests : IClassFixture<SandboxWebApplicationF
     [Fact]
     public async Task ListSubscriptions_WithInvalidToken_Returns401()
     {
-        using var tokenFactory = new TokenProtectedWebApplicationFactory();
-        var client = tokenFactory.CreateClient();
+        await _factory.EnsureDefaultTenantAsync();
+        var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "wrong-token");
         var response = await client.GetAsync("/api/saas/subscriptions?api-version=2018-08-31");
