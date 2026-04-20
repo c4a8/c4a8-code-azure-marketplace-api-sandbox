@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/src/AzureMarketplaceSandbox"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      microsoft:
+        patterns:
+          - "Microsoft.*"
+      efcore:
+        patterns:
+          - "Microsoft.EntityFrameworkCore*"
+
+  - package-ecosystem: "nuget"
+    directory: "/tests/AzureMarketplaceSandbox.Tests"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      test-dependencies:
+        patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.*"
+          - "coverlet.*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
