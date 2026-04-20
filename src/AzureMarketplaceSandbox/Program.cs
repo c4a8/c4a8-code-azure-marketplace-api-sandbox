@@ -15,7 +15,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Configuration
 builder.Services.Configure<SandboxOptions>(builder.Configuration.GetSection(SandboxOptions.SectionName));
-builder.Services.Configure<SeedDataOptions>(builder.Configuration.GetSection(SeedDataOptions.SectionName));
 
 // Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
@@ -66,8 +65,9 @@ builder.Services.AddScoped<SubscriptionService>();
 builder.Services.AddScoped<OperationService>();
 builder.Services.AddScoped<MeteringService>();
 builder.Services.AddScoped<WebhookService>();
+builder.Services.AddScoped<TenantSeedService>();
+builder.Services.AddScoped<TenantBootstrapService>();
 builder.Services.AddHttpClient("Webhook");
-builder.Services.AddHostedService<SeedDataService>();
 
 // Blazor
 builder.Services.AddRazorComponents()

@@ -8,10 +8,3 @@ public class SandboxOptions
     public string LandingPageUrl { get; set; } = "https://localhost:7100/landing";
     public string BaseUrl { get; set; } = "https://localhost:5050";
 }
-
-public class SeedDataOptions
-{
-    public const string SectionName = "SeedData";
-
-    public bool Enabled { get; set; } = true;
-}
