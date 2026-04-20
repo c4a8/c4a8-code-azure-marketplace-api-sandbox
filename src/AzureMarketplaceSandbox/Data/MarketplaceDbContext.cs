@@ -1,10 +1,15 @@
 using AzureMarketplaceSandbox.Domain.Models;
+using AzureMarketplaceSandbox.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace AzureMarketplaceSandbox.Data;
 
-public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options) : DbContext(options)
+public class MarketplaceDbContext(
+    DbContextOptions<MarketplaceDbContext> options,
+    ITenantContext tenantContext) : DbContext(options)
 {
+    private readonly ITenantContext _tenantContext = tenantContext;
+
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Offer> Offers => Set<Offer>();
     public DbSet<Plan> Plans => Set<Plan>();
@@ -42,19 +47,23 @@ public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options
         modelBuilder.Entity<MarketplaceToken>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Token }).IsUnique();
             entity.Property(e => e.Token).HasMaxLength(256);
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(e => e.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
         });
 
         modelBuilder.Entity<Offer>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.OfferId).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.OfferId }).IsUnique();
             entity.Property(e => e.OfferId).HasMaxLength(128);
             entity.HasMany(e => e.Plans)
                 .WithOne(p => p.Offer);
             entity.HasMany(e => e.MeteringDimensions)
                 .WithOne(d => d.Offer);
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(e => e.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
         });
 
         modelBuilder.Entity<Plan>(entity =>
@@ -62,6 +71,8 @@ public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Price).HasPrecision(18, 2);
             entity.Ignore(e => e.PlanComponents);
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(e => e.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
         });
 
         modelBuilder.Entity<MeteringDimension>(entity =>
@@ -69,6 +80,8 @@ public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options
             entity.HasKey(e => e.Id);
             entity.Property(e => e.PricePerUnit).HasPrecision(18, 4);
             entity.Ignore(e => e.Currency);
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(e => e.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
         });
 
         modelBuilder.Entity<PlanMeteringDimension>(entity =>
@@ -83,6 +96,8 @@ public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options
                 .WithMany(d => d.PlanMeteringDimensions)
                 .HasForeignKey(e => e.MeteringDimensionId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(e => e.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
         });
 
         modelBuilder.Entity<Subscription>(entity =>
@@ -93,6 +108,8 @@ public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options
             entity.HasOne(e => e.Term).WithMany().HasForeignKey("TermId");
             entity.Property(e => e.SaasSubscriptionStatus).HasConversion<string>();
             entity.Ignore(e => e.AllowedCustomerOperations);
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(e => e.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
         });
 
         modelBuilder.Entity<Operation>(entity =>
@@ -100,6 +117,8 @@ public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Action).HasConversion<string>();
             entity.Property(e => e.Status).HasConversion<string>();
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(e => e.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
         });
 
         modelBuilder.Entity<UsageEvent>(entity =>
@@ -107,12 +126,16 @@ public class MarketplaceDbContext(DbContextOptions<MarketplaceDbContext> options
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Quantity).HasPrecision(18, 4);
             entity.Property(e => e.Status).HasConversion<string>();
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(e => e.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
         });
 
         modelBuilder.Entity<WebhookDeliveryLog>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Action).HasConversion<string>();
+            entity.HasOne<Tenant>().WithMany().HasForeignKey(e => e.TenantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(e => e.TenantId == _tenantContext.TenantId);
         });
     }
 }

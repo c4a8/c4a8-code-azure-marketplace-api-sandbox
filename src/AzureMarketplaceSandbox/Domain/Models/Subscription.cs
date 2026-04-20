@@ -9,6 +9,9 @@ public class Subscription
     [JsonIgnore]
     public int Id { get; set; }
 
+    [JsonIgnore]
+    public int TenantId { get; set; }
+
     [JsonPropertyName("id")]
     public Guid SubscriptionId { get; set; } = Guid.NewGuid();
 

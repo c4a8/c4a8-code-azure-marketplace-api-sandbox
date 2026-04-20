@@ -84,11 +84,18 @@ public class MeteringTests
         // Test duplicate detection with separate DbContext instances per call (mimics scoped DI)
         var dbName = $"TestDb-Dup-{Guid.NewGuid()}";
 
+        var tenantContext = new TenantContext();
+        tenantContext.Set(1, Guid.NewGuid());
+
+        DbContextOptions<MarketplaceDbContext> BuildOptions() =>
+            new DbContextOptionsBuilder<MarketplaceDbContext>()
+                .UseInMemoryDatabase(dbName)
+                .AddInterceptors(new TenantIdAssigningInterceptor(tenantContext))
+                .Options;
+
         // Seed data
-        var seedOptions = new DbContextOptionsBuilder<MarketplaceDbContext>()
-            .UseInMemoryDatabase(dbName).Options;
         var subId = Guid.NewGuid();
-        using (var seedDb = new MarketplaceDbContext(seedOptions))
+        using (var seedDb = new MarketplaceDbContext(BuildOptions(), tenantContext))
         {
             await seedDb.Database.EnsureCreatedAsync();
             var dimension = new MeteringDimension
@@ -133,7 +140,7 @@ public class MeteringTests
         };
 
         // First call with fresh DbContext: Accepted
-        using (var db1 = new MarketplaceDbContext(seedOptions))
+        using (var db1 = new MarketplaceDbContext(BuildOptions(), tenantContext))
         {
             var service1 = new MeteringService(db1);
             var first = await service1.PostUsageEventAsync(request);
@@ -141,7 +148,7 @@ public class MeteringTests
         }
 
         // Second call with fresh DbContext: Duplicate
-        using (var db2 = new MarketplaceDbContext(seedOptions))
+        using (var db2 = new MarketplaceDbContext(BuildOptions(), tenantContext))
         {
             // Verify data is visible
             var eventCount = await db2.UsageEvents.CountAsync();

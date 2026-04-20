@@ -7,6 +7,9 @@ public class Offer
     [JsonIgnore]
     public int Id { get; set; }
 
+    [JsonIgnore]
+    public int TenantId { get; set; }
+
     [JsonPropertyName("offerId")]
     public string OfferId { get; set; } = string.Empty;
 

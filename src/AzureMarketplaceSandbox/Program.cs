@@ -20,8 +20,10 @@ builder.Services.Configure<SeedDataOptions>(builder.Configuration.GetSection(See
 
 // Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
-builder.Services.AddDbContext<MarketplaceDbContext>(options =>
-    options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
+builder.Services.AddScoped<TenantIdAssigningInterceptor>();
+builder.Services.AddDbContext<MarketplaceDbContext>((sp, options) =>
+    options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure())
+        .AddInterceptors(sp.GetRequiredService<TenantIdAssigningInterceptor>()));
 
 // Authentication — Entra ID (OIDC + Cookies) for Admin UI, SandboxBearer for API
 builder.Services.AddAuthentication()

@@ -10,10 +10,13 @@ public class SubscriptionServiceTests
 {
     private static (MarketplaceDbContext Db, SubscriptionService Service) CreateService()
     {
+        var tenantContext = new TenantContext();
+        tenantContext.Set(1, Guid.NewGuid());
         var options = new DbContextOptionsBuilder<MarketplaceDbContext>()
             .UseInMemoryDatabase($"TestDb-{Guid.NewGuid()}")
+            .AddInterceptors(new TenantIdAssigningInterceptor(tenantContext))
             .Options;
-        var db = new MarketplaceDbContext(options);
+        var db = new MarketplaceDbContext(options, tenantContext);
         return (db, new SubscriptionService(db));
     }
 

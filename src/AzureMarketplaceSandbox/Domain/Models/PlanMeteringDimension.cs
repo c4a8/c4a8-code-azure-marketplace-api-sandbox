@@ -8,6 +8,9 @@ public class PlanMeteringDimension
     public int Id { get; set; }
 
     [JsonIgnore]
+    public int TenantId { get; set; }
+
+    [JsonIgnore]
     public int PlanId { get; set; }
 
     [JsonIgnore]

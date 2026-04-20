@@ -8,6 +8,9 @@ public class UsageEvent
     [JsonIgnore]
     public int Id { get; set; }
 
+    [JsonIgnore]
+    public int TenantId { get; set; }
+
     [JsonPropertyName("usageEventId")]
     public Guid UsageEventId { get; set; } = Guid.NewGuid();
 

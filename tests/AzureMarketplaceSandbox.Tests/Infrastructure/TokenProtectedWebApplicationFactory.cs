@@ -28,9 +28,10 @@ public class TokenProtectedWebApplicationFactory : WebApplicationFactory<Program
             foreach (var d in descriptors)
                 services.Remove(d);
 
-            services.AddDbContext<MarketplaceDbContext>(options =>
+            services.AddDbContext<MarketplaceDbContext>((sp, options) =>
             {
                 options.UseInMemoryDatabase(_dbName);
+                options.AddInterceptors(sp.GetRequiredService<TenantIdAssigningInterceptor>());
             });
         });
 

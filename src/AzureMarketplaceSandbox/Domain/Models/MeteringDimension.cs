@@ -7,6 +7,9 @@ public class MeteringDimension
     [JsonIgnore]
     public int Id { get; set; }
 
+    [JsonIgnore]
+    public int TenantId { get; set; }
+
     [JsonPropertyName("id")]
     public string DimensionId { get; set; } = string.Empty;
 

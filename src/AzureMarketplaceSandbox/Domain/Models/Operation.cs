@@ -8,6 +8,9 @@ public class Operation
     [JsonIgnore]
     public int Id { get; set; }
 
+    [JsonIgnore]
+    public int TenantId { get; set; }
+
     [JsonPropertyName("id")]
     public Guid OperationId { get; set; } = Guid.NewGuid();
 

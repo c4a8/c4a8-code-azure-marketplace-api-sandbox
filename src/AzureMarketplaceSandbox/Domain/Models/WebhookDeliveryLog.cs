@@ -6,6 +6,8 @@ public class WebhookDeliveryLog
 {
     public int Id { get; set; }
 
+    public int TenantId { get; set; }
+
     public Guid WebhookDeliveryLogId { get; set; } = Guid.NewGuid();
 
     public Guid SubscriptionId { get; set; }
