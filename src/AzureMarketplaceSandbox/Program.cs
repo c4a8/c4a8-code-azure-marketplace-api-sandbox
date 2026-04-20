@@ -73,6 +73,7 @@ builder.Services.AddHttpClient("Webhook");
 // Blazor
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddScoped<Microsoft.AspNetCore.Components.Server.Circuits.CircuitHandler, TenantCircuitHandler>();
 
 var app = builder.Build();
 
