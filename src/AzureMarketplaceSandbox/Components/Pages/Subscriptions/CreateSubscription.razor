@@ -1,8 +1,11 @@
 @page "/subscriptions/create"
 @rendermode InteractiveServer
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
 @inject MarketplaceDbContext Db
 @inject NavigationManager Nav
 @inject IOptions<SandboxOptions> SandboxOptions
+@inject AuthenticationStateProvider AuthStateProvider
 
 <AppPageTitle>Create Subscription</AppPageTitle>
 
@@ -80,6 +83,19 @@
     {
         _offers = await Db.Offers.Include(o => o.Plans).ToListAsync();
         _model.BeneficiaryTenantId = Guid.NewGuid().ToString();
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var email = user.FindFirst(ClaimTypes.Email)?.Value
+                ?? user.FindFirst(ClaimTypes.Upn)?.Value
+                ?? user.FindFirst("preferred_username")?.Value;
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                _model.BeneficiaryEmail = email;
+            }
+        }
     }
 
     private void OnOfferChanged()
@@ -160,7 +176,7 @@
         public string OfferId { get; set; } = string.Empty;
         public string PlanId { get; set; } = string.Empty;
         public int Quantity { get; set; } = 1;
-        public string BeneficiaryEmail { get; set; } = "test@contoso.com";
+        public string BeneficiaryEmail { get; set; } = string.Empty;
         public string BeneficiaryTenantId { get; set; } = string.Empty;
         public bool IsFreeTrial { get; set; }
     }
