@@ -210,10 +210,10 @@ public class SubscriptionService(MarketplaceDbContext db)
             .ToListAsync();
         db.MarketplaceTokens.RemoveRange(tokens);
 
+        db.Subscriptions.Remove(subscription);
         db.Remove(subscription.Beneficiary);
         db.Remove(subscription.Purchaser);
         db.Remove(subscription.Term);
-        db.Subscriptions.Remove(subscription);
 
         await db.SaveChangesAsync();
         return true;
