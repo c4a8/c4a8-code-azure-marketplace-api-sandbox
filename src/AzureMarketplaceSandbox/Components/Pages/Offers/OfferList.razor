@@ -1,40 +1,15 @@
 @page "/offers"
 @rendermode InteractiveServer
 @inject MarketplaceDbContext Db
+@inject TenantService TenantService
 @inject NavigationManager Nav
 
 <PageTitle>Offers</PageTitle>
 
-<h1>Offers</h1>
-
-<div class="mb-3">
-    <h5>Create New Offer</h5>
-    <EditForm Model="_newOffer" OnValidSubmit="CreateOffer" FormName="CreateOffer">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label">Offer ID</label>
-                <InputText class="form-control" @bind-Value="_newOffer.OfferId" />
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Publisher ID</label>
-                <InputText class="form-control" @bind-Value="_newOffer.PublisherId" />
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Display Name</label>
-                <InputText class="form-control" @bind-Value="_newOffer.DisplayName" />
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-primary">Create</button>
-            </div>
-        </div>
-    </EditForm>
-    @if (_error is not null)
-    {
-        <div class="alert alert-danger mt-2">@_error</div>
-    }
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Offers</h1>
+    <button class="btn btn-primary" @onclick="OpenCreateOfferModal">Create Offer</button>
 </div>
-
-<hr />
 
 @if (_offers.Count == 0)
 {
@@ -69,13 +44,55 @@ else
     </table>
 }
 
+@if (_editingOffer is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Offer</h5>
+                    <button type="button" class="btn-close" @onclick="CloseOfferModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Offer ID</label>
+                            <InputText class="form-control" @bind-Value="_editingOffer.OfferId" />
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Publisher ID</label>
+                            <InputText class="form-control" @bind-Value="_editingOffer.PublisherId" />
+                            <div class="form-text">Prefilled from tenant settings.</div>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Display Name</label>
+                            <InputText class="form-control" @bind-Value="_editingOffer.DisplayName" />
+                        </div>
+                    </div>
+                    @if (_error is not null)
+                    {
+                        <div class="alert alert-danger mt-3 mb-0">@_error</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseOfferModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveOffer">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<Offer> _offers = [];
-    private Offer _newOffer = new();
+    private Offer? _editingOffer;
     private string? _error;
+    private string _defaultPublisherId = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
+        var tenant = await TenantService.GetCurrentAsync();
+        _defaultPublisherId = tenant?.PublisherId ?? string.Empty;
         await LoadOffers();
     }
 
@@ -84,24 +101,38 @@ else
         _offers = await Db.Offers.Include(o => o.Plans).OrderBy(o => o.OfferId).ToListAsync();
     }
 
-    private async Task CreateOffer()
+    private void OpenCreateOfferModal()
     {
+        _editingOffer = new Offer { PublisherId = _defaultPublisherId };
         _error = null;
-        if (string.IsNullOrWhiteSpace(_newOffer.OfferId))
+    }
+
+    private void CloseOfferModal()
+    {
+        _editingOffer = null;
+        _error = null;
+    }
+
+    private async Task SaveOffer()
+    {
+        if (_editingOffer is null) return;
+
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_editingOffer.OfferId))
         {
             _error = "Offer ID is required.";
             return;
         }
 
-        if (await Db.Offers.AnyAsync(o => o.OfferId == _newOffer.OfferId))
+        if (await Db.Offers.AnyAsync(o => o.OfferId == _editingOffer.OfferId))
         {
-            _error = $"Offer '{_newOffer.OfferId}' already exists.";
+            _error = $"Offer '{_editingOffer.OfferId}' already exists.";
             return;
         }
 
-        Db.Offers.Add(_newOffer);
+        Db.Offers.Add(_editingOffer);
         await Db.SaveChangesAsync();
-        _newOffer = new();
+        _editingOffer = null;
         await LoadOffers();
     }
 
