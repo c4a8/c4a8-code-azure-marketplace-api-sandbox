@@ -24,6 +24,10 @@ public class SandboxWebApplicationFactory : WebApplicationFactory<Program>
         builder.UseSetting("AzureAd:TenantId", "00000000-0000-0000-0000-000000000000");
         builder.UseSetting("AzureAd:ClientId", "00000000-0000-0000-0000-000000000000");
 
+        // Apply activation state change immediately in tests instead of the production 30-60s delay.
+        builder.UseSetting("Sandbox:ActivationDelaySecondsMin", "0");
+        builder.UseSetting("Sandbox:ActivationDelaySecondsMax", "0");
+
         builder.ConfigureServices(services =>
         {
             // Remove all DbContext-related registrations

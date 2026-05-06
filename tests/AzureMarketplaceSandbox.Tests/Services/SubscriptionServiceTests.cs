@@ -1,23 +1,46 @@
+using AzureMarketplaceSandbox.Configuration;
 using AzureMarketplaceSandbox.Data;
 using AzureMarketplaceSandbox.Domain.Enums;
 using AzureMarketplaceSandbox.Domain.Models;
 using AzureMarketplaceSandbox.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace AzureMarketplaceSandbox.Tests.Services;
 
 public class SubscriptionServiceTests
 {
-    private static (MarketplaceDbContext Db, SubscriptionService Service) CreateService()
+    private static (MarketplaceDbContext Db, SubscriptionService Service, IServiceProvider Sp) CreateService()
     {
         var tenantContext = new TenantContext();
         tenantContext.Set(1, Guid.NewGuid());
-        var options = new DbContextOptionsBuilder<MarketplaceDbContext>()
-            .UseInMemoryDatabase($"TestDb-{Guid.NewGuid()}")
-            .AddInterceptors(new TenantIdAssigningInterceptor(tenantContext))
-            .Options;
-        var db = new MarketplaceDbContext(options, tenantContext);
-        return (db, new SubscriptionService(db));
+        var dbName = $"TestDb-{Guid.NewGuid()}";
+
+        var services = new ServiceCollection();
+        services.AddSingleton<ITenantContext>(tenantContext);
+        services.AddSingleton(new TenantIdAssigningInterceptor(tenantContext));
+        services.AddDbContext<MarketplaceDbContext>((sp, opts) =>
+        {
+            opts.UseInMemoryDatabase(dbName);
+            opts.AddInterceptors(sp.GetRequiredService<TenantIdAssigningInterceptor>());
+        });
+        services.Configure<SandboxOptions>(o =>
+        {
+            o.ActivationDelaySecondsMin = 0;
+            o.ActivationDelaySecondsMax = 0;
+        });
+
+        var sp = services.BuildServiceProvider();
+        var db = sp.GetRequiredService<MarketplaceDbContext>();
+        var service = new SubscriptionService(
+            db,
+            sp.GetRequiredService<IServiceScopeFactory>(),
+            sp.GetRequiredService<IOptions<SandboxOptions>>(),
+            tenantContext,
+            NullLogger<SubscriptionService>.Instance);
+        return (db, service, sp);
     }
 
     private static Subscription CreateSubscription(
@@ -43,7 +66,7 @@ public class SubscriptionServiceTests
     [Fact]
     public async Task Activate_FromPending_Succeeds()
     {
-        var (db, service) = CreateService();
+        var (db, service, _) = CreateService();
         var offer = new Offer { OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1" };
         offer.Plans.Add(new Plan { PlanId = "silver", DisplayName = "Silver", IsPricePerSeat = true });
         db.Offers.Add(offer);
@@ -52,9 +75,20 @@ public class SubscriptionServiceTests
         await db.SaveChangesAsync();
 
         var (success, _) = await service.ActivateAsync(sub.SubscriptionId, "silver", 10);
-
         Assert.True(success);
-        var updated = await db.Subscriptions.FirstOrDefaultAsync(s => s.SubscriptionId == sub.SubscriptionId);
+
+        // Activate returns immediately; the actual state change is applied on a background task.
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        Subscription? updated = null;
+        while (DateTime.UtcNow < deadline)
+        {
+            db.ChangeTracker.Clear();
+            updated = await db.Subscriptions.FirstOrDefaultAsync(s => s.SubscriptionId == sub.SubscriptionId);
+            if (updated?.SaasSubscriptionStatus == SaasSubscriptionStatus.Subscribed)
+                break;
+            await Task.Delay(50);
+        }
+
         Assert.Equal(SaasSubscriptionStatus.Subscribed, updated!.SaasSubscriptionStatus);
         Assert.Equal(10, updated.Quantity);
     }
@@ -65,7 +99,7 @@ public class SubscriptionServiceTests
     [InlineData(SaasSubscriptionStatus.Unsubscribed)]
     public async Task Activate_FromNonPending_Fails(SaasSubscriptionStatus status)
     {
-        var (db, service) = CreateService();
+        var (db, service, _) = CreateService();
         var sub = CreateSubscription(status);
         db.Subscriptions.Add(sub);
         await db.SaveChangesAsync();
@@ -77,7 +111,7 @@ public class SubscriptionServiceTests
     [Fact]
     public async Task ChangePlan_ToSamePlan_ReturnsNull()
     {
-        var (db, service) = CreateService();
+        var (db, service, _) = CreateService();
         var sub = CreateSubscription(SaasSubscriptionStatus.Subscribed);
         db.Subscriptions.Add(sub);
         var offer = new Offer { OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1" };
@@ -92,7 +126,7 @@ public class SubscriptionServiceTests
     [Fact]
     public async Task ChangePlan_ToNewPlan_CreatesOperation()
     {
-        var (db, service) = CreateService();
+        var (db, service, _) = CreateService();
         var sub = CreateSubscription(SaasSubscriptionStatus.Subscribed);
         db.Subscriptions.Add(sub);
         var offer = new Offer { OfferId = "offer1", PublisherId = "pub1", DisplayName = "O1" };
@@ -112,7 +146,7 @@ public class SubscriptionServiceTests
     [Fact]
     public async Task ChangeQuantity_ZeroOrNegative_ReturnsNull()
     {
-        var (db, service) = CreateService();
+        var (db, service, _) = CreateService();
         var sub = CreateSubscription(SaasSubscriptionStatus.Subscribed);
         db.Subscriptions.Add(sub);
         await db.SaveChangesAsync();
@@ -124,7 +158,7 @@ public class SubscriptionServiceTests
     [Fact]
     public async Task Unsubscribe_AlreadyUnsubscribed_ReturnsNull()
     {
-        var (db, service) = CreateService();
+        var (db, service, _) = CreateService();
         var sub = CreateSubscription(SaasSubscriptionStatus.Unsubscribed);
         db.Subscriptions.Add(sub);
         await db.SaveChangesAsync();
@@ -136,7 +170,7 @@ public class SubscriptionServiceTests
     [Fact]
     public async Task Unsubscribe_Subscribed_CreatesOperation()
     {
-        var (db, service) = CreateService();
+        var (db, service, _) = CreateService();
         var sub = CreateSubscription(SaasSubscriptionStatus.Subscribed);
         db.Subscriptions.Add(sub);
         await db.SaveChangesAsync();
@@ -150,7 +184,7 @@ public class SubscriptionServiceTests
     [Fact]
     public async Task ListAsync_Pagination_Works()
     {
-        var (db, service) = CreateService();
+        var (db, service, _) = CreateService();
         for (int i = 0; i < 15; i++)
         {
             var sub = CreateSubscription();

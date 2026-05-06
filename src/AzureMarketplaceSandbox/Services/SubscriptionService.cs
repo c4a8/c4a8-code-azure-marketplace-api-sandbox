@@ -1,11 +1,18 @@
+using AzureMarketplaceSandbox.Configuration;
 using AzureMarketplaceSandbox.Data;
 using AzureMarketplaceSandbox.Domain.Enums;
 using AzureMarketplaceSandbox.Domain.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AzureMarketplaceSandbox.Services;
 
-public class SubscriptionService(MarketplaceDbContext db)
+public class SubscriptionService(
+    MarketplaceDbContext db,
+    IServiceScopeFactory scopeFactory,
+    IOptions<SandboxOptions> sandboxOptions,
+    ITenantContext tenantContext,
+    ILogger<SubscriptionService> logger)
 {
     public async Task<Subscription?> GetAsync(Guid subscriptionId)
     {
@@ -78,7 +85,6 @@ public class SubscriptionService(MarketplaceDbContext db)
         {
             if (quantity is null || quantity <= 0)
                 return (false, "quantity is required for seat-based plans.");
-            subscription.Quantity = quantity;
         }
         else
         {
@@ -86,11 +92,47 @@ public class SubscriptionService(MarketplaceDbContext db)
                 return (false, "quantity must be null for non-seat-based plans.");
         }
 
-        subscription.SaasSubscriptionStatus = SaasSubscriptionStatus.Subscribed;
-        subscription.Term.StartDate = DateTime.UtcNow;
-        subscription.Term.EndDate = subscription.Term.CalculateEndDate();
+        // Real Marketplace: activate returns immediately, then status flips to Subscribed after a short delay.
+        var options = sandboxOptions.Value;
+        var min = Math.Max(0, options.ActivationDelaySecondsMin);
+        var max = Math.Max(min, options.ActivationDelaySecondsMax);
+        var delaySeconds = min == max ? min : Random.Shared.Next(min, max + 1);
+        var tenantId = tenantContext.TenantId!.Value;
 
-        await db.SaveChangesAsync();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (delaySeconds > 0)
+                    await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+
+                using var scope = scopeFactory.CreateScope();
+                var scopedDb = scope.ServiceProvider.GetRequiredService<MarketplaceDbContext>();
+                var scopedTenantCtx = scope.ServiceProvider.GetRequiredService<ITenantContext>();
+                scopedTenantCtx.Set(tenantId, Guid.Empty);
+
+                var sub = await scopedDb.Subscriptions
+                    .Include(s => s.Term)
+                    .FirstOrDefaultAsync(s => s.SubscriptionId == subscriptionId);
+                if (sub is null || sub.SaasSubscriptionStatus != SaasSubscriptionStatus.PendingFulfillmentStart)
+                    return;
+
+                if (quantity is not null)
+                    sub.Quantity = quantity;
+                sub.SaasSubscriptionStatus = SaasSubscriptionStatus.Subscribed;
+                sub.Term.StartDate = DateTime.UtcNow;
+                sub.Term.EndDate = sub.Term.CalculateEndDate();
+
+                await scopedDb.SaveChangesAsync();
+                logger.LogInformation("Delayed activation applied for subscription {SubscriptionId} after {DelaySeconds}s.",
+                    subscriptionId, delaySeconds);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Delayed activation failed for subscription {SubscriptionId}.", subscriptionId);
+            }
+        });
+
         return (true, null);
     }
 

@@ -94,9 +94,17 @@ public class FulfillmentSubscriptionTests : IClassFixture<SandboxWebApplicationF
             new { planId = "plan1", quantity = 5 });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        // Verify status changed and quantity updated
-        var getResponse = await client.GetFromJsonAsync<JsonElement>(
-            $"/api/saas/subscriptions/{subId}?api-version=2018-08-31");
+        // Activate returns immediately; status change is applied asynchronously, so poll.
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        JsonElement getResponse = default;
+        while (DateTime.UtcNow < deadline)
+        {
+            getResponse = await client.GetFromJsonAsync<JsonElement>(
+                $"/api/saas/subscriptions/{subId}?api-version=2018-08-31");
+            if (getResponse.GetProperty("saasSubscriptionStatus").GetString() == "Subscribed")
+                break;
+            await Task.Delay(50);
+        }
         Assert.Equal("Subscribed", getResponse.GetProperty("saasSubscriptionStatus").GetString());
         Assert.Equal(5, getResponse.GetProperty("quantity").GetInt32());
     }
